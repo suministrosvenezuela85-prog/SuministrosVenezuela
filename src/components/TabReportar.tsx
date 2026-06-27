@@ -416,7 +416,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
                 💡 Escribe la dirección arriba o toca directamente el mapa para ajustar el pin.
               </p>
 
-              <div className="relative h-36 rounded-lg overflow-hidden border border-gray-200">
+              <div className="relative h-72 rounded-lg overflow-hidden border border-gray-200">
                 {leafletReady ? (
                   <div ref={miniMapContainerRef} style={{ height: '100%', width: '100%' }} />
                 ) : (
