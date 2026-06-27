@@ -36,7 +36,7 @@ export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjus
       : await signIn(email.trim(), password);
 
     if (ok) {
-      setSuccess(isSignUp ? '¡Cuenta creada! Revisa tu email para confirmar.' : '¡Sesión iniciada!');
+      setSuccess(isSignUp ? '¡Cuenta creada con éxito!' : '¡Sesión iniciada!');
       setEmail('');
       setPassword('');
     }
