@@ -49,6 +49,8 @@ export interface Necesidad {
   // Anti-spam
   reportado_por_fingerprint?: string | null;
   reportado_autenticado?: boolean;
+  telefono_contacto?: string | null;
+  colaboradores_telefonos?: string | null;
 }
 
 export interface HistorialEntrega {

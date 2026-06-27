@@ -338,27 +338,77 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
         setIsSubmitting(false); return;
       }
       try {
-        const rows = categoriasSeleccionadas.map(cat => ({
-          centro_id: centroExistenteId,
-          categoria: cat,
-          descripcion: descripcionNecesidad.trim(),
-          cantidad_requerida: cantidadRequerida.trim(),
-          estatus: 'pendiente' as const,
-          urgencia: urgenciaSeleccionada,
-          votos_no_vigente: 0,
-          votos_vigente: 0,
-          reportado_por_fingerprint: fp,
-          reportado_autenticado: user !== null
-        }));
-        const { error } = await (supabase as any).from('necesidades').insert(rows);
-        if (error) throw error;
+        const telUsuario = user?.user_metadata?.telefono || '';
+
+        // 1. Consultar necesidades actuales del centro de acopio
+        const { data: existentes, error: queryErr } = await (supabase as any)
+          .from('necesidades')
+          .select('*')
+          .eq('centro_id', centroExistenteId);
+        
+        if (queryErr) throw queryErr;
+
+        const necesidadesExistentes = existentes || [];
+
+        // 2. Iterar sobre las categorías seleccionadas
+        for (const cat of categoriasSeleccionadas) {
+          const existente = necesidadesExistentes.find((n: any) => n.categoria === cat);
+
+          if (existente) {
+            // Caso A: Ya existe una necesidad para esta categoría en el centro -> Consolidar (update)
+            // Concatenar descripción anterior con la nueva
+            const nuevaDesc = `${existente.descripcion} | ${descripcionNecesidad.trim()}`;
+            
+            // Concatenar teléfono si no está ya en la lista de colaboradores
+            let telefonosActualizados = existente.colaboradores_telefonos || existente.telefono_contacto || '';
+            if (telUsuario && !telefonosActualizados.includes(telUsuario)) {
+              telefonosActualizados = telefonosActualizados 
+                ? `${telefonosActualizados}, ${telUsuario}` 
+                : telUsuario;
+            }
+
+            const { error: updErr } = await (supabase as any)
+              .from('necesidades')
+              .update({
+                descripcion: nuevaDesc,
+                cantidad_requerida: cantidadRequerida.trim(), // Sobrescribir con la cantidad requerida más nueva
+                urgencia: urgenciaSeleccionada,
+                votos_no_vigente: 0, // Resetear votos de no vigente ya que se está reportando vigencia
+                colaboradores_telefonos: telefonosActualizados
+              })
+              .eq('id', existente.id);
+
+            if (updErr) throw updErr;
+          } else {
+            // Caso B: No existe -> Crear nueva (insert)
+            const { error: insErr } = await (supabase as any)
+              .from('necesidades')
+              .insert({
+                centro_id: centroExistenteId,
+                categoria: cat,
+                descripcion: descripcionNecesidad.trim(),
+                cantidad_requerida: cantidadRequerida.trim(),
+                estatus: 'pendiente' as const,
+                urgencia: urgenciaSeleccionada,
+                votos_no_vigente: 0,
+                votos_vigente: 0,
+                reportado_por_fingerprint: fp,
+                reportado_autenticado: user !== null,
+                telefono_contacto: telUsuario || null,
+                colaboradores_telefonos: telUsuario || null
+              });
+
+            if (insErr) throw insErr;
+          }
+        }
+
         vibrar(200);
-        setSubmitSuccess('¡Necesidad agregada al centro existente!');
+        setSubmitSuccess('¡Necesidad procesada y consolidada en el centro!');
         setCantidadRequerida(''); setDescripcionNecesidad('');
         await refetch();
         setTimeout(() => { onTabChange('suministros'); setSubmitSuccess(''); }, 1500);
       } catch (err: any) {
-        setSubmitError(err.message || 'Error al agregar necesidad.');
+        setSubmitError(err.message || 'Error al procesar necesidades.');
       } finally { setIsSubmitting(false); }
       return;
     }
@@ -425,7 +475,9 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
         votos_no_vigente: 0,
         votos_vigente: 0,
         reportado_por_fingerprint: fp,
-        reportado_autenticado: user !== null
+        reportado_autenticado: user !== null,
+        telefono_contacto: user?.user_metadata?.telefono || null,
+        colaboradores_telefonos: user?.user_metadata?.telefono || null
       }));
       const { error: nErr } = await (supabase as any).from('necesidades').insert(necesidadesRows);
       if (nErr) throw nErr;

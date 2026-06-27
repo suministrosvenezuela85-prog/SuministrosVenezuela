@@ -18,6 +18,8 @@ ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS telefono_contacto TEXT NULL;
 -- Rastrear quién creó cada necesidad
 ALTER TABLE necesidades ADD COLUMN IF NOT EXISTS reportado_por_fingerprint TEXT NULL;
 ALTER TABLE necesidades ADD COLUMN IF NOT EXISTS reportado_autenticado BOOLEAN DEFAULT false;
+ALTER TABLE necesidades ADD COLUMN IF NOT EXISTS telefono_contacto TEXT NULL;
+ALTER TABLE necesidades ADD COLUMN IF NOT EXISTS colaboradores_telefonos TEXT NULL;
 
 -- 2. TABLA: log_moderacion (Auditoría de acciones admin)
 CREATE TABLE IF NOT EXISTS log_moderacion (

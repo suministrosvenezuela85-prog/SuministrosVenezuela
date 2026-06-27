@@ -19,6 +19,31 @@ export function CentroCard({ centro }: CentroCardProps) {
   const [verSpam, setVerSpam] = useState<Record<string, boolean>>({});
   const [showColaborarModal, setShowColaborarModal] = useState(false);
 
+  // Extraer todos los teléfonos únicos del coordinador y colaboradores de las necesidades
+  const telefonosColaboradores = React.useMemo(() => {
+    const telefonos = new Set<string>();
+    
+    // 1. Teléfono del coordinador general del centro
+    if (centro.telefono_contacto) {
+      telefonos.add(centro.telefono_contacto.trim());
+    }
+
+    // 2. Teléfonos de colaboradores de las necesidades
+    (centro.necesidades || []).forEach(n => {
+      if (n.telefono_contacto) {
+        telefonos.add(n.telefono_contacto.trim());
+      }
+      if (n.colaboradores_telefonos) {
+        n.colaboradores_telefonos.split(',').forEach(tel => {
+          const t = tel.trim();
+          if (t) telefonos.add(t);
+        });
+      }
+    });
+
+    return Array.from(telefonos);
+  }, [centro]);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem('suministros_sos_votos');
@@ -249,40 +274,51 @@ export function CentroCard({ centro }: CentroCardProps) {
                 <p className="text-[10px] text-gray-400 font-semibold">{centro.municipio}, {centro.estado}</p>
               </div>
 
-              {centro.telefono_contacto ? (
+              {telefonosColaboradores.length > 0 ? (
                 <div className="space-y-4">
-                  <p className="text-xs text-gray-600 leading-relaxed font-medium">
-                    Comunícate directamente con el coordinador de este refugio para coordinar la logística o entrega de suministros.
+                  <p className="text-xs text-gray-600 leading-relaxed font-semibold">
+                    Comunícate con los coordinadores o voluntarios que han reportado necesidades en este refugio para coordinar las entregas:
                   </p>
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
-                      <Phone className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[9px] text-gray-400 font-bold block uppercase tracking-wider">Teléfono Coordinador</span>
-                      <a href={`tel:${centro.telefono_contacto}`} className="text-sm font-bold text-emerald-800 hover:underline">
-                        {centro.telefono_contacto}
-                      </a>
-                    </div>
-                  </div>
                   
-                  {/* Botón WhatsApp */}
-                  <a
-                    href={`https://wa.me/${centro.telefono_contacto.replace(/\D/g, '').startsWith('58') ? centro.telefono_contacto.replace(/\D/g, '') : '58' + centro.telefono_contacto.replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(
-                      `Hola, vi tu reporte en Suministros SOS para el refugio *${centro.nombre}*. Quiero colaborar coordinando la entrega de suministros.`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center"
-                  >
-                    CONTACTAR POR WHATSAPP
-                  </a>
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                    {telefonosColaboradores.map((tel, index) => {
+                      const esCoordinadorCentro = tel === centro.telefono_contacto;
+                      return (
+                        <div key={index} className="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-3 flex items-center justify-between gap-3 hover:bg-emerald-50 transition-colors">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                              <Phone className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[8px] text-gray-400 font-bold block uppercase tracking-wider">
+                                {esCoordinadorCentro ? 'Coordinador General' : `Colaborador #${index + 1}`}
+                              </span>
+                              <a href={`tel:${tel}`} className="text-xs font-bold text-emerald-800 hover:underline block truncate">
+                                {tel}
+                              </a>
+                            </div>
+                          </div>
+
+                          <a
+                            href={`https://wa.me/${tel.replace(/\D/g, '').startsWith('58') ? tel.replace(/\D/g, '') : '58' + tel.replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(
+                              `Hola, vi tu reporte de ayuda en Suministros SOS para el refugio *${centro.nombre}*. Quiero colaborar coordinando la entrega de suministros.`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg active:scale-95 transition-all text-center flex items-center gap-1 shrink-0"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl text-center">
                     <p className="text-xs text-amber-800 font-semibold leading-relaxed">
-                      Este centro fue reportado de forma anónima o antes de la integración del número de contacto. No tiene teléfono registrado.
+                      Este centro y sus necesidades fueron reportadas de forma anónima o antes de la integración del número de contacto.
                     </p>
                   </div>
                   <p className="text-[10px] text-gray-400 leading-relaxed text-center font-medium">
