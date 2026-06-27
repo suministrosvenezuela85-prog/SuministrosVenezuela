@@ -14,13 +14,44 @@ interface TabAjustesProps {
 }
 
 export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjustesProps) {
-  const { user, isAdmin, loading: authLoading, error: authError, signIn, signUp, signOut, setError } = useAuth();
+  const { user, isAdmin, loading: authLoading, error: authError, signIn, signUp, signOut, updatePhone, setError } = useAuth();
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [telefono, setTelefono] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [success, setSuccess] = useState('');
+
+  // Estados para edición de teléfono
+  const [telefonoEdit, setTelefonoEdit] = useState('');
+  const [updatingPhone, setUpdatingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+  const [phoneSuccess, setPhoneSuccess] = useState(false);
+
+  React.useEffect(() => {
+    if (user?.user_metadata?.telefono) {
+      setTelefonoEdit(user.user_metadata.telefono);
+    }
+  }, [user]);
+
+  const handleActualizarTelefono = async () => {
+    setPhoneSuccess(false);
+    setPhoneError('');
+    const telLimpio = telefonoEdit.replace(/\D/g, '');
+    if (telLimpio.length < 10) {
+      setPhoneError('Ingrese un número de teléfono válido (mínimo 10 dígitos).');
+      return;
+    }
+    setUpdatingPhone(true);
+    const ok = await updatePhone(telefonoEdit.trim());
+    setUpdatingPhone(false);
+    if (ok) {
+      setPhoneSuccess(true);
+      setTimeout(() => setPhoneSuccess(false), 3000);
+    } else {
+      setPhoneError('Error al actualizar el teléfono.');
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +118,7 @@ export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjus
       {/* SECCIÓN AUTH */}
       <div className="border border-gray-100 rounded-xl p-4 space-y-3">
         {user ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <CheckCircle className={`w-5 h-5 ${isAdmin ? 'text-blue-600' : 'text-emerald-600'} shrink-0`} />
               <div>
@@ -97,6 +128,41 @@ export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjus
                 <p className="text-[10px] text-gray-500">{user.email}</p>
               </div>
             </div>
+
+            {/* Sección Editar Teléfono */}
+            <div className="border border-gray-100 bg-gray-50/50 rounded-xl p-3 space-y-2">
+              <label htmlFor="edit-telefono" className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                Teléfono de Contacto Celular
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Phone className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2" />
+                  <input
+                    id="edit-telefono"
+                    type="tel"
+                    placeholder="Ej. 04121234567"
+                    value={telefonoEdit}
+                    onChange={e => setTelefonoEdit(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-semibold text-gray-800"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleActualizarTelefono}
+                  disabled={updatingPhone}
+                  className="px-3.5 py-1 bg-gray-900 hover:bg-black text-white font-bold text-xs rounded-lg active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {updatingPhone ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+              {phoneError && <p className="text-red-600 text-[10px] font-bold">{phoneError}</p>}
+              {phoneSuccess && (
+                <p className="text-emerald-700 text-[10px] font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> ¡Teléfono actualizado!
+                </p>
+              )}
+            </div>
+
             {isAdmin && (
               <>
                 <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 p-2 rounded-lg">

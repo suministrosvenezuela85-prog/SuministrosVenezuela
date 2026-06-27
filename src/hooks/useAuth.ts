@@ -71,5 +71,20 @@ export function useAuth() {
     setUser(null);
   }, []);
 
-  return { user, isAdmin, loading, error, signIn, signUp, signOut, setError };
+  const updatePhone = useCallback(async (newPhone: string) => {
+    setError('');
+    setLoading(true);
+    const { data, error: authError } = await supabase.auth.updateUser({
+      data: { telefono: newPhone }
+    });
+    setLoading(false);
+    if (authError) {
+      setError(authError.message);
+      return false;
+    }
+    setUser(data.user);
+    return true;
+  }, []);
+
+  return { user, isAdmin, loading, error, signIn, signUp, signOut, updatePhone, setError };
 }
