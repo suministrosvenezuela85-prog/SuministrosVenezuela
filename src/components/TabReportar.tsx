@@ -78,22 +78,22 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
       setSugerenciasMap([]);
       return;
     }
+    // Si no hay conexión a internet, no intentar buscar
+    if (!isOnline) {
+      setSugerenciasMap([]);
+      return;
+    }
     setBuscandoMap(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5`,
-        {
-          headers: {
-            'User-Agent': 'SuministrosSOS-Venezuela-EmergencyApp'
-          }
-        }
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5`
       );
       if (response.ok) {
         const data = await response.json();
         setSugerenciasMap(data);
       }
     } catch (err) {
-      console.error('Error buscando dirección:', err);
+      console.warn('No se pudo buscar la dirección en el mapa (posible problema de red o CORS):', err);
     } finally {
       setBuscandoMap(false);
     }
