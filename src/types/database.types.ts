@@ -32,6 +32,7 @@ export interface CentroAcopio {
   reportado_por_fingerprint?: string | null;
   reportado_autenticado?: boolean;
   gps_verificado?: boolean;
+  telefono_contacto?: string | null;
 }
 
 export interface Necesidad {

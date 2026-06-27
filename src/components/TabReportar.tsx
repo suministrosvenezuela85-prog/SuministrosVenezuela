@@ -407,10 +407,11 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
         coordenadas: coords,
         estatus_general: estatus,
         verificado: isAdmin,
-        creado_por: null,
+        creado_por: user?.id || null,
         reportado_por_fingerprint: fp,
         reportado_autenticado: user !== null,
-        gps_verificado: gpsVerificado
+        gps_verificado: gpsVerificado,
+        telefono_contacto: user?.user_metadata?.telefono || null
       }).select().single();
       if (cErr) throw cErr;
 
@@ -448,6 +449,29 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     setBusquedaMap(''); setSugerenciasMap([]);
     setCaptchaRespuesta('');
   };
+
+  if (!user) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6 text-center animate-fadeIn" role="tabpanel" id="panel-reportar" aria-label="Autenticación requerida">
+        <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-100">
+          <Siren className="w-8 h-8 animate-pulse" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-lg font-bold text-gray-900">Registro e Inicio de Sesión Requerido</h2>
+          <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+            Para evitar reportes falsos y spam, debes registrarte y proveer tu número de teléfono celular antes de poder reportar refugios o necesidades de suministros.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onTabChange('ajustes')}
+          className="w-full py-3 bg-gray-900 hover:bg-black text-white font-bold text-sm rounded-xl shadow-md active:scale-95 transition-transform"
+        >
+          IR A INICIAR SESIÓN / REGISTRO
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4" role="tabpanel" id="panel-reportar" aria-label="Formulario de reporte">

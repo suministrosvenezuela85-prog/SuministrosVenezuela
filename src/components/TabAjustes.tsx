@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Moon, CheckCircle, LogIn, LogOut, Mail, Lock, Loader2, Shield } from 'lucide-react';
+import { Moon, CheckCircle, LogIn, LogOut, Mail, Lock, Loader2, Shield, Phone } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { TabAdmin } from './TabAdmin';
 import { CentroAcopioConDetalles } from '../types/database.types';
@@ -18,6 +18,7 @@ export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjus
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [success, setSuccess] = useState('');
 
@@ -31,14 +32,23 @@ export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjus
       return;
     }
 
+    if (isSignUp) {
+      const telLimpio = telefono.replace(/\D/g, '');
+      if (telLimpio.length < 10) {
+        setError('Ingrese un número de teléfono válido de contacto (mínimo 10 dígitos).');
+        return;
+      }
+    }
+
     const ok = isSignUp
-      ? await signUp(email.trim(), password)
+      ? await signUp(email.trim(), password, { telefono: telefono.trim() })
       : await signIn(email.trim(), password);
 
     if (ok) {
       setSuccess(isSignUp ? '¡Cuenta creada con éxito!' : '¡Sesión iniciada!');
       setEmail('');
       setPassword('');
+      setTelefono('');
     }
   };
 
@@ -122,6 +132,16 @@ export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjus
                   className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-gray-800"
                   aria-label="Correo electrónico" autoComplete="email" />
               </div>
+              
+              {isSignUp && (
+                <div className="relative">
+                  <Phone className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" aria-hidden="true" />
+                  <input type="tel" placeholder="Teléfono celular (ej. 04121234567)" value={telefono} onChange={e => setTelefono(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-gray-800"
+                    aria-label="Número telefónico" autoComplete="tel" required />
+                </div>
+              )}
+
               <div className="relative">
                 <Lock className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" aria-hidden="true" />
                 <input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}

@@ -12,6 +12,8 @@ ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS reportado_por_fingerprint TE
 ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS reportado_autenticado BOOLEAN DEFAULT false;
 -- ¿El GPS del creador coincidía con la ubicación del centro?
 ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS gps_verificado BOOLEAN DEFAULT false;
+-- Teléfono del coordinador para botón de colaborar
+ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS telefono_contacto TEXT NULL;
 
 -- Rastrear quién creó cada necesidad
 ALTER TABLE necesidades ADD COLUMN IF NOT EXISTS reportado_por_fingerprint TEXT NULL;

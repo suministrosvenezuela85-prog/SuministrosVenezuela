@@ -47,12 +47,15 @@ export function useAuth() {
     return true;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, any>) => {
     setError('');
     setLoading(true);
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: metadata
+      }
     });
     setLoading(false);
     if (authError) {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Check, ThumbsUp, ThumbsDown, AlertTriangle, Award, Eye, EyeOff, Share2 } from 'lucide-react';
+import { MapPin, Check, ThumbsUp, ThumbsDown, AlertTriangle, Award, Eye, EyeOff, Share2, Phone, X } from 'lucide-react';
 import { CentroAcopioConDetalles } from '../types/database.types';
 import { supabase } from '../lib/supabaseClient';
 import { obtenerLatLng, calcularDistanciaKm, generarFingerprint, formatRelativeTime } from '../lib/geo';
@@ -17,6 +17,7 @@ export function CentroCard({ centro }: CentroCardProps) {
   const [votosIniciales, setVotosIniciales] = useState<Record<string, 'vigente' | 'no_vigente'>>({});
   const [votando, setVotando] = useState<Record<string, boolean>>({});
   const [verSpam, setVerSpam] = useState<Record<string, boolean>>({});
+  const [showColaborarModal, setShowColaborarModal] = useState(false);
 
   useEffect(() => {
     try {
@@ -216,7 +217,84 @@ export function CentroCard({ centro }: CentroCardProps) {
             })
           )}
         </div>
+
+        {/* Pie del Centro Card: Botón Colaborar */}
+        <div className="mt-4 pt-3 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={() => setShowColaborarModal(true)}
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all duration-200"
+          >
+            <Phone className="w-3.5 h-3.5 fill-white/10" />
+            COLABORAR / CONTACTAR
+          </button>
+        </div>
       </div>
+
+      {/* Modal de Colaboración y Contacto */}
+      {showColaborarModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-gray-100 animate-scaleUp">
+            {/* Header del Modal */}
+            <div className="bg-emerald-600 p-4 text-white flex justify-between items-center">
+              <h3 className="font-bold text-sm">Coordinar Ayuda</h3>
+              <button onClick={() => setShowColaborarModal(false)} className="p-1 hover:bg-emerald-700 rounded transition-colors text-white" aria-label="Cerrar modal">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Contenido */}
+            <div className="p-5 space-y-4">
+              <div className="space-y-1">
+                <h4 className="font-bold text-gray-900 text-base leading-snug">{centro.nombre}</h4>
+                <p className="text-[10px] text-gray-400 font-semibold">{centro.municipio}, {centro.estado}</p>
+              </div>
+
+              {centro.telefono_contacto ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                    Comunícate directamente con el coordinador de este refugio para coordinar la logística o entrega de suministros.
+                  </p>
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-gray-400 font-bold block uppercase tracking-wider">Teléfono Coordinador</span>
+                      <a href={`tel:${centro.telefono_contacto}`} className="text-sm font-bold text-emerald-800 hover:underline">
+                        {centro.telefono_contacto}
+                      </a>
+                    </div>
+                  </div>
+                  
+                  {/* Botón WhatsApp */}
+                  <a
+                    href={`https://wa.me/${centro.telefono_contacto.replace(/\D/g, '').startsWith('58') ? centro.telefono_contacto.replace(/\D/g, '') : '58' + centro.telefono_contacto.replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(
+                      `Hola, vi tu reporte en Suministros SOS para el refugio *${centro.nombre}*. Quiero colaborar coordinando la entrega de suministros.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all text-center"
+                  >
+                    CONTACTAR POR WHATSAPP
+                  </a>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl text-center">
+                    <p className="text-xs text-amber-800 font-semibold leading-relaxed">
+                      Este centro fue reportado de forma anónima o antes de la integración del número de contacto. No tiene teléfono registrado.
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-relaxed text-center font-medium">
+                    Puedes acercarte a la dirección física indicada para ofrecer ayuda presencial:<br />
+                    <span className="font-bold text-gray-700 block mt-1 bg-gray-50 border border-gray-100 p-2 rounded-lg">{centro.direccion}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
