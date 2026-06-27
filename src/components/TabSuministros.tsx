@@ -102,7 +102,7 @@ export function TabSuministros({
       ) : (
         <div className="space-y-4">
           {centros.map((centro) => (
-            <CentroCard key={centro.id} centro={centro} />
+            <CentroCard key={centro.id} centro={centro} refetch={onRefetch} />
           ))}
         </div>
       )}

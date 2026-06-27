@@ -8,17 +8,51 @@ import { obtenerLatLng, calcularDistanciaKm, generarFingerprint, formatRelativeT
 import { getCategoriaIcon, getCategoriaLabel, getUrgenciaStyles, getUrgenciaLabel, getEstatusBorderColor } from '../lib/categorias';
 import { vibrar, generarEnlaceWhatsApp } from '../lib/feedback';
 
+import { useAuth } from '../hooks/useAuth';
+
 interface CentroCardProps {
   centro: CentroAcopioConDetalles;
+  refetch: () => void;
 }
 
-export function CentroCard({ centro }: CentroCardProps) {
+export function CentroCard({ centro, refetch }: CentroCardProps) {
   const [votosLocal, setVotosLocal] = useState<Record<string, 'vigente' | 'no_vigente'>>({});
   const [votosIniciales, setVotosIniciales] = useState<Record<string, 'vigente' | 'no_vigente'>>({});
   const [votando, setVotando] = useState<Record<string, boolean>>({});
   const [verSpam, setVerSpam] = useState<Record<string, boolean>>({});
   const [showColaborarModal, setShowColaborarModal] = useState(false);
   const [expandido, setExpandido] = useState(false);
+
+  const { user, isAdmin } = useAuth();
+  const esCoordinador = user && (centro.creado_por === user.id || isAdmin);
+
+  const handleCambiarUrgencia = async (necesidadId: string, nuevaUrgencia: 'critico' | 'parcial' | 'recibiendo') => {
+    try {
+      const { error } = await supabase
+        .from('necesidades')
+        .update({ urgencia: nuevaUrgencia })
+        .eq('id', necesidadId);
+      if (error) throw error;
+      vibrar(100);
+      refetch();
+    } catch (err) {
+      console.error('Error al cambiar urgencia:', err);
+    }
+  };
+
+  const handleMarcarResuelta = async (necesidadId: string) => {
+    try {
+      const { error } = await supabase
+        .from('necesidades')
+        .update({ estatus: 'surtido' as any })
+        .eq('id', necesidadId);
+      if (error) throw error;
+      vibrar(200);
+      refetch();
+    } catch (err) {
+      console.error('Error al marcar resuelta:', err);
+    }
+  };
 
   // Extraer todos los teléfonos únicos del coordinador y colaboradores de las necesidades
   const telefonosColaboradores = React.useMemo(() => {
@@ -273,6 +307,63 @@ export function CentroCard({ centro }: CentroCardProps) {
                             </button>
                           </div>
                         </div>
+
+                        {/* Controles de Gestión del Coordinador */}
+                        {esCoordinador && (
+                          <div className="mt-3 pt-3 border-t border-gray-50 space-y-2.5 animate-fadeIn">
+                            <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                              Gestión de Coordinador
+                            </span>
+                            <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50/70 p-2 rounded-xl border border-gray-100/50">
+                              {/* Selector de Urgencia */}
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCambiarUrgencia(necesidad.id, 'critico')}
+                                  className={`px-2 py-1 text-[9px] font-extrabold rounded-lg border transition-all ${
+                                    necesidad.urgencia === 'critico'
+                                      ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                                      : 'bg-white text-red-700 border-red-200 hover:bg-red-50'
+                                  }`}
+                                >
+                                  CRÍTICO
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCambiarUrgencia(necesidad.id, 'parcial')}
+                                  className={`px-2 py-1 text-[9px] font-extrabold rounded-lg border transition-all ${
+                                    necesidad.urgencia === 'parcial'
+                                      ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                                      : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
+                                  }`}
+                                >
+                                  PARCIAL
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCambiarUrgencia(necesidad.id, 'recibiendo')}
+                                  className={`px-2 py-1 text-[9px] font-extrabold rounded-lg border transition-all ${
+                                    necesidad.urgencia === 'recibiendo'
+                                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                      : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                                  }`}
+                                >
+                                  ESTABLE
+                                </button>
+                              </div>
+
+                              {/* Botón Marcar Resuelto */}
+                              <button
+                                type="button"
+                                onClick={() => handleMarcarResuelta(necesidad.id)}
+                                className="px-3 py-1 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-lg flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                RESUELTO
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-gray-500 text-xs italic">Reporte minimizado por votos de spam.</p>
