@@ -792,9 +792,8 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
 
       {/* Modal de duplicado geográfico detectado */}
       <ConfirmModal open={showDuplicadoModal} title="Centro Similar Detectado"
-        confirmLabel="Crear de Todas Formas" cancelLabel="Agregar al Existente"
-        onConfirm={() => { setShowDuplicadoModal(false); setDuplicadoDetectado(null); setShowConfirm(true); }}
-        onCancel={() => {
+        confirmLabel="Usar Existente" cancelLabel="Crear Nuevo"
+        onConfirm={() => {
           if (duplicadoDetectado) {
             setMode('existente');
             setCentroExistenteId(duplicadoDetectado.id);
@@ -802,6 +801,11 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
           }
           setShowDuplicadoModal(false);
           setDuplicadoDetectado(null);
+        }}
+        onCancel={() => {
+          setShowDuplicadoModal(false);
+          setDuplicadoDetectado(null);
+          setShowConfirm(true);
         }}>
         <div className="space-y-2 text-xs">
           <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
