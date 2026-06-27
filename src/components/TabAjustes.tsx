@@ -132,10 +132,6 @@ export function TabAjustes({ oledDark, onToggleOled }: TabAjustesProps) {
         )}
       </div>
 
-      <div className="bg-gray-50 border border-gray-100 p-3 rounded-lg text-xs leading-normal text-gray-700">
-        Los coordinadores verificados tienen la insignia azul. El rol de administrador se asigna desde la consola de Supabase en los metadatos del usuario.
-      </div>
-
       <div className="text-center pt-4 border-t border-gray-100 text-[10px] text-gray-400 space-y-1">
         <p className="font-bold">Suministros SOS v2.1.0 (Producción)</p>
         <p>Diseñado para emergencias humanitarias bajo redes de baja conectividad.</p>
