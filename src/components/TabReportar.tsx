@@ -56,6 +56,68 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
 
   const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<CategoriaNecesidad[]>(['agua_hidratacion']);
 
+  const [busquedaMap, setBusquedaMap] = useState('');
+  const [sugerenciasMap, setSugerenciasMap] = useState<any[]>([]);
+  const [buscandoMap, setBuscandoMap] = useState(false);
+
+  const buscarUbicacionMap = async (query: string) => {
+    if (!query.trim()) {
+      setSugerenciasMap([]);
+      return;
+    }
+    setBuscandoMap(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5`,
+        {
+          headers: {
+            'User-Agent': 'SuministrosSOS-Venezuela-EmergencyApp'
+          }
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSugerenciasMap(data);
+      }
+    } catch (err) {
+      console.error('Error buscando dirección:', err);
+    } finally {
+      setBuscandoMap(false);
+    }
+  };
+
+  // Debounce para búsqueda
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (busquedaMap.trim().length > 2) {
+        // Evitar re-buscar si ya seleccionamos exactamente ese display_name
+        const coincideExacto = sugerenciasMap.some(s => s.display_name === busquedaMap);
+        if (!coincideExacto) {
+          buscarUbicacionMap(busquedaMap);
+        }
+      } else {
+        setSugerenciasMap([]);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [busquedaMap]);
+
+  const seleccionarSugerencia = (sug: any) => {
+    const lat = parseFloat(sug.lat);
+    const lon = parseFloat(sug.lon);
+    setLatitudCentro(lat);
+    setLongitudCentro(lon);
+    setUbicacionFijada(true);
+    setSugerenciasMap([]);
+    setBusquedaMap(sug.display_name);
+
+    if (miniMapRef.current) {
+      miniMapRef.current.setView([lat, lon], 16);
+    }
+    vibrar(100);
+  };
+
   const toggleCategoria = (cat: CategoriaNecesidad) => {
     setCategoriasSeleccionadas(prev =>
       prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
@@ -231,6 +293,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     setCategoriasSeleccionadas(['agua_hidratacion']);
     setCantidadRequerida(''); setDescripcionNecesidad(''); resetGps();
     setLatitudCentro(null); setLongitudCentro(null); setUbicacionFijada(false);
+    setBusquedaMap(''); setSugerenciasMap([]);
   };
 
   return (
@@ -300,8 +363,39 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
               <input id="direccion" type="text" placeholder="Calle Principal con Av. Sucre..." value={direccionReporte} onChange={e => setDireccionReporte(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-gray-800" required />
             </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-600 uppercase">Ubicación GPS (Opcional)</label>
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-gray-600 uppercase">Ubicación del Refugio (Opcional)</label>
+              
+              {/* Input Yummy Rides de búsqueda de dirección */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar dirección (ej. Plaza Altamira, Chacao)..."
+                  value={busquedaMap}
+                  onChange={e => setBusquedaMap(e.target.value)}
+                  className="w-full pl-9 pr-12 py-2.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-semibold text-gray-800"
+                />
+                {buscandoMap && (
+                  <span className="absolute right-3 top-3 text-[9px] text-gray-400 font-bold animate-pulse">Buscando...</span>
+                )}
+                
+                {sugerenciasMap.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-30 divide-y divide-gray-100 animate-fadeIn">
+                    {sugerenciasMap.map((sug, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => seleccionarSugerencia(sug)}
+                        className="w-full text-left px-3 py-2 text-[10px] text-gray-700 hover:bg-red-50 hover:text-red-900 transition-colors font-bold truncate block"
+                      >
+                        {sug.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2">
                 <button type="button" onClick={detectarUbicacion} disabled={gpsLoading}
                   className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-lg border border-gray-200 flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
@@ -309,7 +403,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
                   <MapPin className="w-3.5 h-3.5 text-gray-600" />{gpsLoading ? 'Detectando...' : 'DETECTAR MI UBICACIÓN'}
                 </button>
                 {ubicacionFijada && (
-                  <button type="button" onClick={() => { setLatitudCentro(null); setLongitudCentro(null); setUbicacionFijada(false); resetGps(); }}
+                  <button type="button" onClick={() => { setLatitudCentro(null); setLongitudCentro(null); setUbicacionFijada(false); resetGps(); setBusquedaMap(''); }}
                     className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-lg border border-red-200"
                     aria-label="Borrar ubicación del mapa">
                     BORRAR PIN
@@ -319,7 +413,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
               {gpsError && <p className="text-red-600 text-[10px] font-bold" role="alert">{gpsError}</p>}
               
               <p className="text-[10px] font-medium text-gray-500">
-                💡 Toca cualquier parte del mapa para fijar o ajustar manualmente el pin.
+                💡 Escribe la dirección arriba o toca directamente el mapa para ajustar el pin.
               </p>
 
               <div className="relative h-36 rounded-lg overflow-hidden border border-gray-200">
