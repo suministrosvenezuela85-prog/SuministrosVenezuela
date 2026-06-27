@@ -59,3 +59,110 @@ input:focus, select:focus, textarea:focus {
   border-color: #b91c1c; /* Borde rojo al enfocar */
   box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.15);
 }
+
+/* =========================================================================
+   MODO OSCURO OLED PURO (#000000) DE ALTO CONTRASTE (WCAG AAA)
+   ========================================================================= */
+
+body.oled-dark {
+  background-color: #000000 !important;
+  color: #f9fafb !important;
+}
+
+/* Modificadores globales de tarjetas y contenedores en Modo OLED */
+body.oled-dark .bg-white,
+body.oled-dark .bg-gray-50,
+body.oled-dark .bg-gray-100 {
+  background-color: #111827 !important; /* Gris oscuro profundo */
+  color: #f9fafb !important;
+  border-color: #1f2937 !important;
+}
+
+body.oled-dark header,
+body.oled-dark nav {
+  background-color: #000000 !important;
+  border-color: #111827 !important;
+  color: #ffffff !important;
+}
+
+body.oled-dark select,
+body.oled-dark input,
+body.oled-dark textarea {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+  border-color: #374151 !important;
+}
+
+body.oled-dark button {
+  border-color: #374151 !important;
+}
+
+body.oled-dark button.bg-white {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+}
+
+/* Textos de alto contraste */
+body.oled-dark .text-gray-900,
+body.oled-dark .text-gray-800,
+body.oled-dark .text-gray-700,
+body.oled-dark h1,
+body.oled-dark h2,
+body.oled-dark h3,
+body.oled-dark h4 {
+  color: #ffffff !important;
+}
+
+body.oled-dark .text-gray-600,
+body.oled-dark .text-gray-500,
+body.oled-dark .text-gray-400 {
+  color: #d1d5db !important; /* Gris claro de alta visibilidad */
+}
+
+/* Optimización para el mapa de Leaflet en modo OLED */
+body.oled-dark .leaflet-container {
+  background-color: #111827 !important;
+}
+body.oled-dark .leaflet-bar a {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+  border-bottom-color: #374151 !important;
+}
+body.oled-dark .leaflet-popup-content-wrapper,
+body.oled-dark .leaflet-popup-tip {
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.6) !important;
+}
+
+/* Ajustes de contrastes en tags de urgencia */
+body.oled-dark .bg-red-50 {
+  background-color: rgba(220, 38, 38, 0.15) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
+}
+body.oled-dark .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fde047 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+body.oled-dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #a7f3d0 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+body.oled-dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #bfdbfe !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+body.oled-dark .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #c7d2fe !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+body.oled-dark .bg-yellow-50 {
+  background-color: rgba(234, 179, 8, 0.15) !important;
+  color: #fef08a !important;
+  border-color: rgba(234, 179, 8, 0.3) !important;
+}

@@ -1,300 +1,187 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  MapPin, 
-  Check, 
-  ThumbsUp, 
-  ThumbsDown, 
-  AlertTriangle, 
-  Droplet, 
-  Utensils, 
-  Heart, 
-  Zap, 
-  Activity,
-  Award,
-  Sparkles
-} from 'lucide-react';
-import { CentroAcopioConDetalles, Necesidad } from '../types/database.types';
+import { MapPin, Check, ThumbsUp, ThumbsDown, AlertTriangle, Award, Eye, EyeOff, Share2 } from 'lucide-react';
+import { CentroAcopioConDetalles } from '../types/database.types';
 import { supabase } from '../lib/supabaseClient';
+import { obtenerLatLng, calcularDistanciaKm, generarFingerprint, formatRelativeTime } from '../lib/geo';
+import { getCategoriaIcon, getCategoriaLabel, getUrgenciaStyles, getUrgenciaLabel, getEstatusBorderColor } from '../lib/categorias';
+import { vibrar, generarEnlaceWhatsApp } from '../lib/feedback';
 
 interface CentroCardProps {
   centro: CentroAcopioConDetalles;
 }
 
-// Función de tiempo relativo optimizada en JS puro
-function formatRelativeTime(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMs = now.getTime() - date.getTime();
-    
-    // Si la hora del cliente está desincronizada o el reporte es muy nuevo
-    if (diffInMs < 0) return 'Hace un momento';
-
-    const diffInMins = Math.floor(diffInMs / (1000 * 60));
-    if (diffInMins < 1) return 'Hace un momento';
-    if (diffInMins < 60) return `Hace ${diffInMins} min`;
-    
-    const diffInHours = Math.floor(diffInMins / 60);
-    if (diffInHours < 24) return `Hace ${diffInHours} ${diffInHours === 1 ? 'hora' : 'horas'}`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `Hace ${diffInDays} ${diffInDays === 1 ? 'día' : 'días'}`;
-  } catch (e) {
-    return 'Recientemente';
-  }
-}
-
-// Icono correspondiente a la categoría
-function getCategoriaIcon(categoria: string) {
-  switch (categoria) {
-    case 'agua_hidratacion':
-      return <Droplet className="w-3.5 h-3.5 mr-1 text-blue-600" />;
-    case 'alimentos_no_perecederos':
-      return <Utensils className="w-3.5 h-3.5 mr-1 text-amber-600" />;
-    case 'medicinas_primeros_auxilios':
-      return <Heart className="w-3.5 h-3.5 mr-1 text-red-600" />;
-    case 'ropa_mantas':
-      return <Sparkles className="w-3.5 h-3.5 mr-1 text-indigo-600" />;
-    case 'higiene_personal':
-      return <Activity className="w-3.5 h-3.5 mr-1 text-emerald-600" />;
-    case 'energia_electricidad':
-      return <Zap className="w-3.5 h-3.5 mr-1 text-yellow-500" />;
-    default:
-      return <Activity className="w-3.5 h-3.5 mr-1 text-gray-600" />;
-  }
-}
-
-// Nombre legible de la categoría
-function getCategoriaLabel(categoria: string) {
-  switch (categoria) {
-    case 'agua_hidratacion':
-      return 'Agua';
-    case 'alimentos_no_perecederos':
-      return 'Alimentos';
-    case 'medicinas_primeros_auxilios':
-      return 'Medicinas';
-    case 'ropa_mantas':
-      return 'Ropa/Mantas';
-    case 'higiene_personal':
-      return 'Higiene';
-    case 'energia_electricidad':
-      return 'Energía';
-    default:
-      return 'Suministro';
-  }
-}
-
-// Estilos de la necesidad en base a urgencia
-function getUrgenciaStyles(urgencia: 'critico' | 'parcial' | 'recibiendo') {
-  switch (urgencia) {
-    case 'critico':
-      return 'bg-red-50 text-red-700 border-red-200';
-    case 'parcial':
-      return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'recibiendo':
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    default:
-      return 'bg-gray-50 text-gray-700 border-gray-200';
-  }
-}
-
-function getUrgenciaLabel(urgencia: 'critico' | 'parcial' | 'recibiendo') {
-  switch (urgencia) {
-    case 'critico':
-      return 'CRÍTICO';
-    case 'parcial':
-      return 'Recibiendo';
-    case 'recibiendo':
-      return 'Estable';
-    default:
-      return 'Pendiente';
-  }
-}
-
 export function CentroCard({ centro }: CentroCardProps) {
-  // Guardar votos emitidos en el cliente para deshabilitar clicks repetidos
-  const [votosLocal, setVotosLocal] = useState<{ [key: string]: 'vigente' | 'no_vigente' }>({});
-  const [votando, setVotando] = useState<{ [key: string]: boolean }>({});
+  const [votosLocal, setVotosLocal] = useState<Record<string, 'vigente' | 'no_vigente'>>({});
+  const [votando, setVotando] = useState<Record<string, boolean>>({});
+  const [verSpam, setVerSpam] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // Cargar historial de votos del usuario en este navegador
-    const storedVotes = localStorage.getItem('suministros_sos_votos');
-    if (storedVotes) {
-      try {
-        setVotosLocal(JSON.parse(storedVotes));
-      } catch (e) {
-        console.error('Error parseando votos locales', e);
-      }
-    }
+    try {
+      const stored = localStorage.getItem('suministros_sos_votos');
+      if (stored) setVotosLocal(JSON.parse(stored));
+    } catch { /* silenciar */ }
   }, []);
 
-  // Función para manejar el voto
   const handleVotar = async (necesidadId: string, tipoVoto: 'vigente' | 'no_vigente') => {
-    // Si ya votó esta necesidad, no hacer nada
     if (votosLocal[necesidadId] || votando[necesidadId]) return;
-
     setVotando(prev => ({ ...prev, [necesidadId]: true }));
 
-    // Actualización optimista del estado para evitar lag en 3G
-    const nuevosVotos = { ...votosLocal, [necesidadId]: tipoVoto };
-    setVotosLocal(nuevosVotos);
-    localStorage.setItem('suministros_sos_votos', JSON.stringify(nuevosVotos));
+    const ejecutarVoto = async () => {
+      const nuevosVotos = { ...votosLocal, [necesidadId]: tipoVoto };
+      setVotosLocal(nuevosVotos);
+      localStorage.setItem('suministros_sos_votos', JSON.stringify(nuevosVotos));
 
-    try {
-      // Llamar a la función RPC de Supabase para incrementar votos en el servidor
-      const rpcName = tipoVoto === 'vigente' ? 'votar_necesidad_vigente' : 'votar_necesidad_no_vigente';
-      const { error } = await supabase.rpc(rpcName, { necesidad_id: necesidadId });
-      
-      if (error) {
-        // Si hay error en base de datos, revertir voto local
-        console.error('Error al registrar voto en Supabase:', error);
-        const { [necesidadId]: _, ...revertedVotes } = nuevosVotos;
-        setVotosLocal(revertedVotes);
-        localStorage.setItem('suministros_sos_votos', JSON.stringify(revertedVotes));
+      try {
+        const fp = generarFingerprint();
+        const rpcName = tipoVoto === 'vigente' ? 'votar_necesidad_vigente' : 'votar_necesidad_no_vigente';
+        const { data, error } = await supabase.rpc(rpcName, { necesidad_id: necesidadId, fingerprint: fp });
+
+        if (error) {
+          console.error('Error al registrar voto:', error);
+          const { [necesidadId]: _, ...revertido } = nuevosVotos;
+          setVotosLocal(revertido);
+          localStorage.setItem('suministros_sos_votos', JSON.stringify(revertido));
+        } else {
+          vibrar(100);
+          if (data === false) {
+            // Voto duplicado detectado por el servidor
+            console.info('Voto duplicado detectado por rate-limiting del servidor.');
+          }
+        }
+      } catch (err) {
+        console.error('Error de red en votación:', err);
+      } finally {
+        setVotando(prev => ({ ...prev, [necesidadId]: false }));
       }
-    } catch (err) {
-      console.error('Error de red en votación:', err);
-    } finally {
-      setVotando(prev => ({ ...prev, [necesidadId]: false }));
+    };
+
+    // Geofencing
+    const centroPosicion = obtenerLatLng(centro.coordenadas);
+    if (centroPosicion && typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const dist = calcularDistanciaKm(pos.coords.latitude, pos.coords.longitude, centroPosicion[0], centroPosicion[1]);
+          if (dist > 15) {
+            const ok = window.confirm(`⚠️ Estás a ${dist.toFixed(1)} km de este refugio.\n¿Deseas confirmar tu voto?`);
+            if (!ok) { setVotando(prev => ({ ...prev, [necesidadId]: false })); return; }
+          }
+          ejecutarVoto();
+        },
+        () => ejecutarVoto(),
+        { timeout: 5000 }
+      );
+    } else {
+      ejecutarVoto();
     }
   };
 
-  // Color del borde de prioridad del centro de acopio
-  const getBordeColor = (estatus: string) => {
-    switch (estatus) {
-      case 'critico':
-        return 'border-t-red-600';
-      case 'parcial':
-        return 'border-t-amber-500';
-      case 'surtido':
-        return 'border-t-emerald-600';
-      default:
-        return 'border-t-gray-400';
-    }
+  const compartirWhatsApp = () => {
+    const necesidadesTexto = (centro.necesidades || [])
+      .filter(n => n.estatus === 'pendiente')
+      .map(n => `  • ${getCategoriaLabel(n.categoria)} (${n.urgencia.toUpperCase()}) — ${n.descripcion}`)
+      .join('\n');
+
+    const texto = `🚨 *SUMINISTROS SOS VENEZUELA* 🇻🇪\n\n*${centro.nombre}*\n📍 ${centro.municipio}, ${centro.estado}\n📋 ${centro.direccion}\n\n*Necesidades activas:*\n${necesidadesTexto || '  Sin necesidades reportadas'}\n\n🔗 Coordina en tiempo real.`;
+    window.open(generarEnlaceWhatsApp(texto), '_blank');
   };
 
-  // Filtrar necesidades válidas (que no tengan más de 3 votos no vigentes para evitar spam)
-  const necesidadesFiltradas = centro.necesidades?.filter(
-    (n) => n.estatus !== 'surtido'
-  ) || [];
+  const necesidadesFiltradas = (centro.necesidades || []).filter(n => n.estatus !== 'surtido');
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border-t-4 ${getBordeColor(centro.estatus_general)} border-x border-b border-gray-100 overflow-hidden transition-all duration-300`}>
+    <div className={`bg-white rounded-xl shadow-sm border-t-4 ${getEstatusBorderColor(centro.estatus_general)} border-x border-b border-gray-100 overflow-hidden transition-all duration-300`}>
       <div className="p-4">
-        
-        {/* Cabecera del Centro */}
         <div className="flex justify-between items-start gap-2 mb-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <h3 className="font-bold text-gray-900 text-lg leading-tight flex items-center gap-1">
-              {centro.nombre}
-              {centro.verificado && (
-                <span className="inline-flex text-blue-600" title="Centro Verificado Oficial">
-                  <Award className="w-5 h-5 fill-blue-500 text-white" />
-                </span>
-              )}
-            </h3>
+          <h3 className="font-bold text-gray-900 text-lg leading-tight flex items-center gap-1">
+            {centro.nombre}
+            {centro.verificado && (
+              <span className="inline-flex text-blue-600" title="Coordinador Verificado" aria-label="Centro verificado oficialmente">
+                <Award className="w-5 h-5 fill-blue-500 text-white" />
+              </span>
+            )}
+          </h3>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button onClick={compartirWhatsApp} className="p-1 text-gray-400 hover:text-emerald-600 rounded transition-colors" aria-label="Compartir por WhatsApp" title="Compartir por WhatsApp">
+              <Share2 className="w-4 h-4" />
+            </button>
+            <span className="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 whitespace-nowrap">
+              {formatRelativeTime(centro.ultima_actualizacion)}
+            </span>
           </div>
-          <span className="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 whitespace-nowrap shrink-0">
-            {formatRelativeTime(centro.ultima_actualizacion)}
-          </span>
         </div>
 
-        {/* Ubicación */}
         <div className="flex items-center text-gray-600 text-xs mb-4 gap-1">
-          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" aria-hidden="true" />
           <span className="font-medium text-gray-700">{centro.municipio}, {centro.estado}</span>
+          {centro.coordenadas && (<><span className="text-gray-300">|</span><span className="text-[10px] font-semibold text-blue-600">GPS</span></>)}
           <span className="text-gray-300">|</span>
-          <span className="truncate" title={centro.direccion}>{centro.direccion}</span>
+          <span className="truncate max-w-[150px]" title={centro.direccion}>{centro.direccion}</span>
         </div>
 
-        {/* Listado de Necesidades Activas */}
         <div className="space-y-3">
           {necesidadesFiltradas.length === 0 ? (
             <p className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-lg flex items-center gap-1.5">
-              <Check className="w-4 h-4 shrink-0" /> No hay necesidades urgentes reportadas en este momento.
+              <Check className="w-4 h-4 shrink-0" aria-hidden="true" /> Sin necesidades urgentes.
             </p>
           ) : (
             necesidadesFiltradas.map((necesidad) => {
-              const esSpam = necesidad.votos_no_vigente >= 3;
-              const yaVotoVigente = votosLocal[necesidad.id] === 'vigente';
-              const yaVotoNoVigente = votosLocal[necesidad.id] === 'no_vigente';
-              const haVotado = yaVotoVigente || yaVotoNoVigente;
+              const score = necesidad.votos_vigente - (2 * necesidad.votos_no_vigente);
+              const esSpam = score <= -3 || necesidad.votos_no_vigente >= 3;
+              const yaVotoV = votosLocal[necesidad.id] === 'vigente';
+              const yaVotoNV = votosLocal[necesidad.id] === 'no_vigente';
+              const haVotado = yaVotoV || yaVotoNV;
+              const oculto = esSpam && !verSpam[necesidad.id];
 
               return (
-                <div 
-                  key={necesidad.id} 
-                  className={`border border-gray-100 rounded-lg p-3 transition-opacity duration-200 ${esSpam ? 'opacity-50 bg-gray-50' : 'bg-white'}`}
-                >
-                  {/* Fila superior de la Necesidad */}
-                  <div className="flex justify-between items-start gap-2 mb-1.5">
-                    <span className={`inline-flex items-center px-2 py-0.5 border text-xs font-semibold rounded-md ${getUrgenciaStyles(necesidad.urgencia)}`}>
-                      {getCategoriaIcon(necesidad.categoria)}
-                      {getCategoriaLabel(necesidad.categoria)} - {getUrgenciaLabel(necesidad.urgencia)}
-                    </span>
-                    <span className="text-xs font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
-                      Cant: {necesidad.cantidad_requerida}
-                    </span>
-                  </div>
-
-                  {/* Descripción */}
-                  <p className="text-gray-700 text-sm mb-3 font-medium">
-                    {necesidad.descripcion}
-                  </p>
-
-                  {/* Sección Anti-Spam / Validación Comunitaria */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-gray-50">
-                    <span className="text-xs text-gray-500 font-semibold">
-                      ¿Sigue vigente este reporte?
-                    </span>
-                    
-                    <div className="flex items-center gap-2">
-                      {/* Botón Sí - Sigue Vigente */}
-                      <button
-                        onClick={() => handleVotar(necesidad.id, 'vigente')}
-                        disabled={haVotado || votando[necesidad.id]}
-                        className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                          yaVotoVigente 
-                            ? 'bg-emerald-600 text-white border-emerald-600' 
-                            : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 active:scale-95'
-                        } disabled:cursor-not-allowed`}
-                      >
-                        <ThumbsUp className="w-3.5 h-3.5" />
-                        Sí ({necesidad.votos_vigente + (yaVotoVigente ? 1 : 0)})
-                      </button>
-
-                      {/* Botón No - Ya no se necesita / Reporte Falso */}
-                      <button
-                        onClick={() => handleVotar(necesidad.id, 'no_vigente')}
-                        disabled={haVotado || votando[necesidad.id]}
-                        className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                          yaVotoNoVigente 
-                            ? 'bg-red-600 text-white border-red-600' 
-                            : 'bg-white text-red-700 border-red-200 hover:bg-red-50 active:scale-95'
-                        } disabled:cursor-not-allowed`}
-                      >
-                        <ThumbsDown className="w-3.5 h-3.5" />
-                        No ({necesidad.votos_no_vigente + (yaVotoNoVigente ? 1 : 0)})
+                <div key={necesidad.id} className={`border border-gray-100 rounded-lg p-3 transition-all ${esSpam ? 'bg-red-50/30 border-red-100/50' : 'bg-white'}`}>
+                  {esSpam && (
+                    <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-red-100/30">
+                      <span className="text-[10px] font-bold text-red-700 bg-red-100/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Spam (Score: {score})
+                      </span>
+                      <button type="button" onClick={() => setVerSpam(prev => ({ ...prev, [necesidad.id]: !prev[necesidad.id] }))}
+                        className="text-[10px] font-bold text-red-800 hover:underline flex items-center gap-1"
+                        aria-label={oculto ? 'Mostrar contenido del reporte' : 'Ocultar reporte'}>
+                        {oculto ? <><Eye className="w-3 h-3" /> Mostrar</> : <><EyeOff className="w-3 h-3" /> Ocultar</>}
                       </button>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Alerta de Verificación si acumula sospechas de spam/falsedad */}
-                  {esSpam && (
-                    <div className="mt-2.5 bg-red-50 text-red-800 text-xs border border-red-200 px-3 py-2 rounded-lg flex items-start gap-1.5 animate-pulse">
-                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold">Reporte bajo revisión:</span> Este suministro ha recibido múltiples reportes de no vigencia o falsedad por la comunidad. Requiere verificación oficial.
+                  {!oculto ? (
+                    <div className="animate-fadeIn">
+                      <div className="flex justify-between items-start gap-2 mb-1.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 border text-xs font-semibold rounded-md ${getUrgenciaStyles(necesidad.urgencia)}`}>
+                          {getCategoriaIcon(necesidad.categoria)}
+                          {getCategoriaLabel(necesidad.categoria)} - {getUrgenciaLabel(necesidad.urgencia)}
+                        </span>
+                        <span className="text-xs font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">Cant: {necesidad.cantidad_requerida}</span>
+                      </div>
+                      <p className="text-gray-700 text-sm mb-3 font-medium">{necesidad.descripcion}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-gray-50">
+                        <span className="text-[11px] text-gray-500 font-semibold">¿Sigue vigente?</span>
+                        <div className="flex items-center gap-2" role="group" aria-label="Votar vigencia del reporte">
+                          <button onClick={() => handleVotar(necesidad.id, 'vigente')} disabled={haVotado || votando[necesidad.id]}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${yaVotoV ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 active:scale-95'} disabled:cursor-not-allowed`}
+                            aria-label={`Votar que sí sigue vigente (${necesidad.votos_vigente + (yaVotoV ? 1 : 0)} votos)`} aria-pressed={yaVotoV}>
+                            <ThumbsUp className="w-3.5 h-3.5" />Sí ({necesidad.votos_vigente + (yaVotoV ? 1 : 0)})
+                          </button>
+                          <button onClick={() => handleVotar(necesidad.id, 'no_vigente')} disabled={haVotado || votando[necesidad.id]}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${yaVotoNV ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-700 border-red-200 hover:bg-red-50 active:scale-95'} disabled:cursor-not-allowed`}
+                            aria-label={`Votar que no sigue vigente (${necesidad.votos_no_vigente + (yaVotoNV ? 1 : 0)} votos)`} aria-pressed={yaVotoNV}>
+                            <ThumbsDown className="w-3.5 h-3.5" />No ({necesidad.votos_no_vigente + (yaVotoNV ? 1 : 0)})
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  ) : (
+                    <p className="text-gray-500 text-xs italic">Reporte minimizado por votos de spam.</p>
                   )}
                 </div>
               );
             })
           )}
         </div>
-
       </div>
     </div>
   );
