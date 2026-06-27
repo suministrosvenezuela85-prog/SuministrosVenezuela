@@ -145,14 +145,14 @@ RETURNS BOOLEAN AS $$
 BEGIN
     -- Intentar registrar el voto. Si ya existe (UNIQUE violation), no hacer nada.
     INSERT INTO votos_registro (necesidad_id, voter_fingerprint, tipo_voto)
-    VALUES (necesidad_id, fingerprint, 'vigente')
+    VALUES (votar_necesidad_vigente.necesidad_id, votar_necesidad_vigente.fingerprint, 'vigente')
     ON CONFLICT (necesidad_id, voter_fingerprint) DO NOTHING;
     
     -- Si se insertó (voto nuevo), incrementar el conteo
     IF FOUND THEN
         UPDATE necesidades
         SET votos_vigente = votos_vigente + 1
-        WHERE id = necesidad_id;
+        WHERE necesidades.id = votar_necesidad_vigente.necesidad_id;
         RETURN true;
     END IF;
     
@@ -164,13 +164,13 @@ CREATE OR REPLACE FUNCTION votar_necesidad_no_vigente(necesidad_id UUID, fingerp
 RETURNS BOOLEAN AS $$
 BEGIN
     INSERT INTO votos_registro (necesidad_id, voter_fingerprint, tipo_voto)
-    VALUES (necesidad_id, fingerprint, 'no_vigente')
+    VALUES (votar_necesidad_no_vigente.necesidad_id, votar_necesidad_no_vigente.fingerprint, 'no_vigente')
     ON CONFLICT (necesidad_id, voter_fingerprint) DO NOTHING;
     
     IF FOUND THEN
         UPDATE necesidades
         SET votos_no_vigente = votos_no_vigente + 1
-        WHERE id = necesidad_id;
+        WHERE necesidades.id = votar_necesidad_no_vigente.necesidad_id;
         RETURN true;
     END IF;
     
