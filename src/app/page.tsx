@@ -134,14 +134,6 @@ export default function SuministrosApp() {
         )}
       </main>
 
-      {/* Banner de Patrocinio / Financiamiento */}
-      <div className="bg-gray-100/90 backdrop-blur-md border-t border-gray-200/60 py-1.5 px-3 text-center text-[10px] font-semibold text-gray-500 flex items-center justify-center gap-1 shrink-0">
-        <span>Esta aplicación está siendo financiada por</span>
-        <span className="font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-          Repuestos Sotomayor
-        </span>
-      </div>
-
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );

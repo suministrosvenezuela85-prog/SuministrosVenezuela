@@ -234,6 +234,9 @@ export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjus
         <p className="font-bold">Suministros SOS v2.1.0 (Producción)</p>
         <p>Diseñado para emergencias humanitarias bajo redes de baja conectividad.</p>
         <p>Caracas, Venezuela — 2026</p>
+        <p className="pt-2 text-[9px] text-gray-500 font-semibold italic">
+          Esta aplicación está siendo financiada por Repuestos Sotomayor
+        </p>
       </div>
 
       {showAdminPanel && isAdmin && (
