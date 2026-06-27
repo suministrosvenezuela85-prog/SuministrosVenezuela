@@ -39,7 +39,7 @@ export function CentroCard({ centro }: CentroCardProps) {
         const { data, error } = await supabase.rpc(rpcName, { necesidad_id: necesidadId, fingerprint: fp });
 
         if (error) {
-          console.error('Error al registrar voto:', error);
+          console.warn('Error al registrar voto:', error.message || error.code || JSON.stringify(error));
           const { [necesidadId]: _, ...revertido } = nuevosVotos;
           setVotosLocal(revertido);
           localStorage.setItem('suministros_sos_votos', JSON.stringify(revertido));

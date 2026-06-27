@@ -24,7 +24,7 @@ interface TabReportarProps {
   centros: CentroAcopioConDetalles[];
   onEncolar: (reporte: any) => boolean;
   onTabChange: (tab: string) => void;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange, refetch }: TabReportarProps) {
@@ -144,7 +144,8 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
         vibrar(200);
         setSubmitSuccess('¡Necesidad agregada al centro existente!');
         setCantidadRequerida(''); setDescripcionNecesidad('');
-        setTimeout(() => { onTabChange('suministros'); setSubmitSuccess(''); }, 2000);
+        await refetch();
+        setTimeout(() => { onTabChange('suministros'); setSubmitSuccess(''); }, 1500);
       } catch (err: any) {
         setSubmitError(err.message || 'Error al agregar necesidad.');
       } finally { setIsSubmitting(false); }
@@ -202,7 +203,8 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
       vibrar(200);
       setSubmitSuccess('¡Reporte enviado y sincronizado en tiempo real!');
       resetForm();
-      setTimeout(() => { onTabChange('suministros'); setSubmitSuccess(''); }, 2000);
+      await refetch();
+      setTimeout(() => { onTabChange('suministros'); setSubmitSuccess(''); }, 1500);
     } catch (err: any) {
       setSubmitError(err.message || 'Error de conexión.');
     } finally { setIsSubmitting(false); }
