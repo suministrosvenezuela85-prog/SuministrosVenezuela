@@ -54,6 +54,20 @@ export function CentroCard({ centro, refetch }: CentroCardProps) {
     }
   };
 
+  const handleCambiarEstatusCentro = async (nuevoEstatus: any) => {
+    try {
+      const { error } = await supabase
+        .from('centros_acopio')
+        .update({ estatus_general: nuevoEstatus })
+        .eq('id', centro.id);
+      if (error) throw error;
+      vibrar(200);
+      refetch();
+    } catch (err) {
+      console.error('Error al cambiar estatus del centro:', err);
+    }
+  };
+
   // Extraer todos los teléfonos únicos del coordinador y colaboradores de las necesidades
   const telefonosColaboradores = React.useMemo(() => {
     const telefonos = new Set<string>();
@@ -223,7 +237,7 @@ export function CentroCard({ centro, refetch }: CentroCardProps) {
               <>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {necesidadesFiltradas.map(n => (
-                    <span key={n.id} className="text-[10px] font-bold px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-gray-700 flex items-center gap-1 shadow-sm">
+                    <span key={n.id} className={`text-[10px] font-bold px-2.5 py-1 border rounded-lg flex items-center gap-1 shadow-sm transition-colors ${getUrgenciaStyles(n.urgencia)}`}>
                       {getCategoriaIcon(n.categoria)}
                       <span>{getCategoriaLabel(n.categoria)}</span>
                     </span>
@@ -374,7 +388,51 @@ export function CentroCard({ centro, refetch }: CentroCardProps) {
             </div>
 
             {/* Pie del Centro Card: Botones de Acción en Modo Expandido */}
-            <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+            <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
+              {/* Gestión de Condición del Refugio */}
+              {esCoordinador && (
+                <div className="bg-gray-50/50 border border-gray-100 rounded-xl p-3 space-y-2 animate-fadeIn">
+                  <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                    Condición General del Refugio (Coordinador)
+                  </span>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCambiarEstatusCentro('critico')}
+                      className={`flex-1 py-1.5 text-[10px] font-extrabold rounded-lg border transition-all ${
+                        centro.estatus_general === 'critico'
+                          ? 'bg-red-600 text-white border-red-600 shadow-sm'
+                          : 'bg-white text-red-700 border-red-200 hover:bg-red-50'
+                      }`}
+                    >
+                      🚨 CRÍTICO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCambiarEstatusCentro('parcial')}
+                      className={`flex-1 py-1.5 text-[10px] font-extrabold rounded-lg border transition-all ${
+                        centro.estatus_general === 'parcial'
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                          : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
+                      }`}
+                    >
+                      ⚠️ PARCIAL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCambiarEstatusCentro('surtido')}
+                      className={`flex-1 py-1.5 text-[10px] font-extrabold rounded-lg border transition-all ${
+                        centro.estatus_general === 'surtido'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                      ✅ ESTABLE
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => setShowColaborarModal(true)}
