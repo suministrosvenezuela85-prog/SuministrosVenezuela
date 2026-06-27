@@ -126,6 +126,15 @@ export function CentroCard({ centro }: CentroCardProps) {
           <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" aria-hidden="true" />
           <span className="font-medium text-gray-700">{centro.municipio}, {centro.estado}</span>
           {centro.coordenadas && (<><span className="text-gray-300">|</span><span className="text-[10px] font-semibold text-blue-600">GPS</span></>)}
+          {centro.reportado_autenticado && (
+            <><span className="text-gray-300">|</span><span className="text-[10px] font-semibold text-emerald-600" title="Reportado por usuario registrado">✓ Registrado</span></>
+          )}
+          {centro.gps_verificado && (
+            <><span className="text-gray-300">|</span><span className="text-[10px] font-semibold text-indigo-600" title="Ubicación GPS del reportante verificada">📍 Verificado</span></>
+          )}
+          {!centro.verificado && !centro.reportado_autenticado && !centro.gps_verificado && (
+            <><span className="text-gray-300">|</span><span className="text-[10px] font-medium text-gray-400" title="Reporte anónimo">Anónimo</span></>
+          )}
           <span className="text-gray-300">|</span>
           <span className="truncate max-w-[150px]" title={centro.direccion}>{centro.direccion}</span>
         </div>

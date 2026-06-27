@@ -23,11 +23,15 @@ export interface CentroAcopio {
   estado: string;
   municipio: string;
   direccion: string;
-  coordenadas: string | null; // Postgres Point viene como string "(lng,lat)" en lecturas simples
+  coordenadas: string | null;
   estatus_general: EstatusCentro;
   verificado: boolean;
   creado_por: string | null;
   ultima_actualizacion: string;
+  // Anti-spam
+  reportado_por_fingerprint?: string | null;
+  reportado_autenticado?: boolean;
+  gps_verificado?: boolean;
 }
 
 export interface Necesidad {
@@ -41,6 +45,9 @@ export interface Necesidad {
   votos_no_vigente: number;
   votos_vigente: number;
   creado_en: string;
+  // Anti-spam
+  reportado_por_fingerprint?: string | null;
+  reportado_autenticado?: boolean;
 }
 
 export interface HistorialEntrega {
@@ -55,6 +62,27 @@ export interface CentroAcopioConDetalles extends Omit<CentroAcopio, 'coordenadas
   coordenadas: CoordenadasPoint | string | null;
   necesidades: Necesidad[];
   historial_entregas?: HistorialEntrega[];
+}
+
+export interface LogModeracion {
+  id: string;
+  admin_id: string | null;
+  admin_email: string | null;
+  accion: string;
+  entidad_tipo: 'centro' | 'necesidad';
+  entidad_id: string;
+  entidad_nombre: string | null;
+  detalles: string | null;
+  creado_en: string;
+}
+
+export interface ReputacionDispositivo {
+  fingerprint: string;
+  puntaje: number;
+  total_reportes: number;
+  reportes_eliminados: number;
+  ultimo_reporte: string | null;
+  actualizado_en: string;
 }
 
 // Estructura explícita del esquema de Supabase para evitar errores de compilación 'never[]'

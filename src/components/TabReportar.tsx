@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MapPin, CheckCircle, AlertTriangle, PlusCircle, Droplet, Utensils, Heart, Zap, Activity, Loader2, Search, Siren } from 'lucide-react';
+import { MapPin, CheckCircle, AlertTriangle, PlusCircle, Droplet, Utensils, Heart, Zap, Activity, Loader2, Search, Siren, ShieldAlert } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useLeaflet } from '../hooks/useLeaflet';
@@ -10,6 +10,18 @@ import { CategoriaNecesidad, EstatusCentro, CentroAcopioConDetalles } from '../t
 import { vibrar } from '../lib/feedback';
 import { getCategoriaLabel } from '../lib/categorias';
 import { useRef, useEffect } from 'react';
+import {
+  verificarCooldown,
+  registrarReporteEnCooldown,
+  validarHoneypot,
+  filtrarContenido,
+  detectarDuplicadoGeografico,
+  validarDistanciaGPS,
+  obtenerPreguntaCaptcha,
+  validarRespuestaCaptcha
+} from '../lib/antispam';
+import { generarFingerprint } from '../lib/geo';
+import { useAuth } from '../hooks/useAuth';
 
 const ESTADOS_VENEZUELA = [
   'Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas', 'Bolívar',
@@ -31,6 +43,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
   const [mode, setMode] = useState<'nuevo' | 'existente'>('nuevo');
   const [centroExistenteId, setCentroExistenteId] = useState('');
   const [busquedaCentro, setBusquedaCentro] = useState('');
+  const { user } = useAuth();
 
   const [nombreCentro, setNombreCentro] = useState('');
   const [estadoReporte, setEstadoReporte] = useState('Distrito Capital');
@@ -132,6 +145,39 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // --- Anti-Spam State ---
+  const [honeypot, setHoneypot] = useState('');
+  const [duplicadoDetectado, setDuplicadoDetectado] = useState<CentroAcopioConDetalles | null>(null);
+  const [showDuplicadoModal, setShowDuplicadoModal] = useState(false);
+
+  // --- CAPTCHA condicional ---
+  const [requiereCaptcha, setRequiereCaptcha] = useState(false);
+  const [captchaPregunta, setCaptchaPregunta] = useState<{ pregunta: string; respuestas: string[] } | null>(null);
+  const [captchaRespuesta, setCaptchaRespuesta] = useState('');
+
+  // Verificar la reputación del dispositivo al iniciar
+  useEffect(() => {
+    if (!isOnline) return;
+    const verificarReputacion = async () => {
+      try {
+        const fp = generarFingerprint();
+        const { data, error } = await (supabase as any)
+          .from('reputacion_dispositivo')
+          .select('puntaje')
+          .eq('fingerprint', fp)
+          .maybeSingle();
+        
+        if (data && data.puntaje < -5) {
+          setRequiereCaptcha(true);
+          setCaptchaPregunta(obtenerPreguntaCaptcha());
+        }
+      } catch {
+        // En caso de error, no bloquear la experiencia de usuario
+      }
+    };
+    verificarReputacion();
+  }, [isOnline]);
+
   // Mini mapa interactivo
   useEffect(() => {
     if (!leafletReady || !L || !miniMapContainerRef.current) {
@@ -179,6 +225,34 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
 
   const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // === ANTI-SPAM: Honeypot ===
+    if (!validarHoneypot(honeypot)) {
+      // Bot detectado — descartar silenciosamente
+      setSubmitSuccess('¡Reporte enviado!'); // Mensaje falso para el bot
+      return;
+    }
+
+    // === ANTI-SPAM: CAPTCHA condicional ===
+    if (requiereCaptcha && captchaPregunta) {
+      if (!validarRespuestaCaptcha(captchaPregunta, captchaRespuesta)) {
+        setSubmitError('Respuesta de verificación incorrecta. Por favor, intenta de nuevo.');
+        // Recargar una nueva pregunta
+        setCaptchaPregunta(obtenerPreguntaCaptcha());
+        setCaptchaRespuesta('');
+        return;
+      }
+    }
+
+    // === ANTI-SPAM: Rate Limiting (Cooldown) ===
+    const cooldown = verificarCooldown();
+    if (!cooldown.permitido) {
+      const mins = Math.ceil(cooldown.segundosRestantes / 60);
+      setSubmitError(`Has reportado recientemente. Espera ${mins} minuto(s) para enviar otro reporte.`);
+      return;
+    }
+
+    // Validaciones de campos estándar
     if (mode === 'nuevo' && (!nombreCentro.trim() || !municipioReporte.trim() || !direccionReporte.trim())) {
       setSubmitError('Complete todos los campos del centro.'); return;
     }
@@ -191,6 +265,27 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     if (!cantidadRequerida.trim() || !descripcionNecesidad.trim()) {
       setSubmitError('Complete la cantidad y descripción de la necesidad.'); return;
     }
+
+    // === ANTI-SPAM: Filtro de Contenido ===
+    const filtro = filtrarContenido([
+      nombreCentro, municipioReporte, direccionReporte,
+      cantidadRequerida, descripcionNecesidad
+    ]);
+    if (!filtro.limpio) {
+      setSubmitError('Tu reporte contiene contenido que no puede ser publicado. Revisa el texto e intenta de nuevo.');
+      return;
+    }
+
+    // === ANTI-SPAM: Detección de Duplicados Geográficos (solo modo nuevo) ===
+    if (mode === 'nuevo') {
+      const dup = detectarDuplicadoGeografico(centros, nombreCentro.trim(), latitudCentro, longitudCentro);
+      if (dup.esDuplicado && dup.centroSimilar) {
+        setDuplicadoDetectado(dup.centroSimilar);
+        setShowDuplicadoModal(true);
+        return;
+      }
+    }
+
     setSubmitError('');
     setShowConfirm(true);
   };
@@ -200,6 +295,8 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     setIsSubmitting(true);
     setSubmitError('');
     setSubmitSuccess('');
+
+    const fp = generarFingerprint();
 
     // Modo: agregar necesidad a centro existente
     if (mode === 'existente') {
@@ -215,9 +312,12 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
           cantidad_requerida: cantidadRequerida.trim(),
           estatus: 'pendiente' as const,
           urgencia: urgenciaSeleccionada,
-          votos_no_vigente: 0, votos_vigente: 0,
+          votos_no_vigente: 0,
+          votos_vigente: 0,
+          reportado_por_fingerprint: fp,
+          reportado_autenticado: user !== null
         }));
-        const { error } = await supabase.from('necesidades').insert(rows);
+        const { error } = await (supabase as any).from('necesidades').insert(rows);
         if (error) throw error;
         vibrar(200);
         setSubmitSuccess('¡Necesidad agregada al centro existente!');
@@ -244,6 +344,8 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
           descripcion: descripcionNecesidad.trim(),
           cantidad: cantidadRequerida.trim(),
           urgencia: urgenciaSeleccionada, verificado: isAdmin,
+          reportado_por_fingerprint: fp,
+          reportado_autenticado: user !== null
         });
         if (!ok) { allOk = false; break; }
       }
@@ -259,26 +361,43 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
       const estatus: EstatusCentro = urgenciaSeleccionada === 'critico' ? 'critico' : urgenciaSeleccionada === 'parcial' ? 'parcial' : 'surtido';
       const coords = latitudCentro && longitudCentro ? `(${longitudCentro},${latitudCentro})` : null;
 
-      const { data: centroData, error: cErr } = await supabase.from('centros_acopio').insert({
+      // Medida 3: Validación geográfica
+      const gpsVerificado = latitud && longitud && latitudCentro && longitudCentro
+        ? validarDistanciaGPS(latitud, longitud, latitudCentro, longitudCentro)
+        : false;
+
+      const { data: centroData, error: cErr } = await (supabase as any).from('centros_acopio').insert({
         nombre: nombreCentro.trim(),
         estado: estadoReporte,
         municipio: municipioReporte.trim(),
         direccion: direccionReporte.trim(),
-        coordenadas: coords, estatus_general: estatus,
-        verificado: isAdmin, creado_por: null,
+        coordenadas: coords,
+        estatus_general: estatus,
+        verificado: isAdmin,
+        creado_por: null,
+        reportado_por_fingerprint: fp,
+        reportado_autenticado: user !== null,
+        gps_verificado: gpsVerificado
       }).select().single();
       if (cErr) throw cErr;
 
       const necesidadesRows = categoriasSeleccionadas.map(cat => ({
-        centro_id: centroData.id, categoria: cat,
+        centro_id: centroData.id,
+        categoria: cat,
         descripcion: descripcionNecesidad.trim(),
         cantidad_requerida: cantidadRequerida.trim(),
-        estatus: 'pendiente' as const, urgencia: urgenciaSeleccionada, votos_no_vigente: 0, votos_vigente: 0,
+        estatus: 'pendiente' as const,
+        urgencia: urgenciaSeleccionada,
+        votos_no_vigente: 0,
+        votos_vigente: 0,
+        reportado_por_fingerprint: fp,
+        reportado_autenticado: user !== null
       }));
-      const { error: nErr } = await supabase.from('necesidades').insert(necesidadesRows);
+      const { error: nErr } = await (supabase as any).from('necesidades').insert(necesidadesRows);
       if (nErr) throw nErr;
 
       vibrar(200);
+      registrarReporteEnCooldown();
       setSubmitSuccess('¡Reporte enviado y sincronizado en tiempo real!');
       resetForm();
       await refetch();
@@ -294,6 +413,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     setCantidadRequerida(''); setDescripcionNecesidad(''); resetGps();
     setLatitudCentro(null); setLongitudCentro(null); setUbicacionFijada(false);
     setBusquedaMap(''); setSugerenciasMap([]);
+    setCaptchaRespuesta('');
   };
 
   return (
@@ -318,6 +438,17 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
       </div>
 
       <form onSubmit={handlePreSubmit} className="space-y-4">
+        {/* Honeypot anti-bot (invisible para humanos) */}
+        <input
+          type="text"
+          name="website_url"
+          value={honeypot}
+          onChange={e => setHoneypot(e.target.value)}
+          style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+        />
         {submitError && <div className="p-3 bg-red-50 text-red-800 text-xs border border-red-200 rounded-lg flex items-center gap-1.5" role="alert"><AlertTriangle className="w-4 h-4 text-red-600 shrink-0" /><span className="font-semibold">{submitError}</span></div>}
         {submitSuccess && <div className="p-3 bg-emerald-50 text-emerald-800 text-xs border border-emerald-200 rounded-lg flex items-center gap-1.5" role="alert"><CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" /><span className="font-semibold">{submitSuccess}</span></div>}
 
@@ -534,6 +665,24 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
           </div>
         )}
 
+        {requiereCaptcha && captchaPregunta && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+            <label htmlFor="captcha-input" className="block text-xs font-bold text-amber-900 uppercase">
+              Verificación de seguridad (Reputación baja)
+            </label>
+            <p className="text-xs text-amber-800 font-semibold">{captchaPregunta.pregunta}</p>
+            <input
+              id="captcha-input"
+              type="text"
+              placeholder="Escribe tu respuesta aquí..."
+              value={captchaRespuesta}
+              onChange={e => setCaptchaRespuesta(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs bg-white border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium text-amber-950"
+              required
+            />
+          </div>
+        )}
+
         <div className="flex gap-2 pt-2">
           <button type="submit" disabled={isSubmitting}
             className="flex-1 py-3 bg-gray-900 hover:bg-black text-white font-bold text-sm rounded-xl shadow flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -563,6 +712,32 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
           <p><strong>Suministros ({categoriasSeleccionadas.length}):</strong> {categoriasSeleccionadas.map(c => getCategoriaLabel(c)).join(', ')}</p>
           <p><strong>Urgencia:</strong> {urgenciaSeleccionada.toUpperCase()}</p>
           <p><strong>Cantidad:</strong> {cantidadRequerida}</p>
+        </div>
+      </ConfirmModal>
+
+      {/* Modal de duplicado geográfico detectado */}
+      <ConfirmModal open={showDuplicadoModal} title="Centro Similar Detectado"
+        confirmLabel="Crear de Todas Formas" cancelLabel="Agregar al Existente"
+        onConfirm={() => { setShowDuplicadoModal(false); setDuplicadoDetectado(null); setShowConfirm(true); }}
+        onCancel={() => {
+          if (duplicadoDetectado) {
+            setMode('existente');
+            setCentroExistenteId(duplicadoDetectado.id);
+            setBusquedaCentro(duplicadoDetectado.nombre);
+          }
+          setShowDuplicadoModal(false);
+          setDuplicadoDetectado(null);
+        }}>
+        <div className="space-y-2 text-xs">
+          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-amber-900">Ya existe un centro similar:</p>
+              <p className="text-amber-800 mt-1"><strong>{duplicadoDetectado?.nombre}</strong></p>
+              <p className="text-amber-700">{duplicadoDetectado?.municipio}, {duplicadoDetectado?.estado}</p>
+            </div>
+          </div>
+          <p className="text-gray-600">¿Deseas agregar tu necesidad al centro existente en lugar de crear uno nuevo?</p>
         </div>
       </ConfirmModal>
     </div>

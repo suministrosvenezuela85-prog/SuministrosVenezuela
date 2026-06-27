@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Shield, BarChart3, Trash2, CheckCircle2, AlertTriangle, Search, Activity, RefreshCw } from 'lucide-react';
-import { CentroAcopioConDetalles, CategoriaNecesidad, EstatusCentro } from '../types/database.types';
+import React, { useState, useEffect } from 'react';
+import { X, Shield, BarChart3, Trash2, CheckCircle2, AlertTriangle, Search, Activity, RefreshCw, Clock } from 'lucide-react';
+import { CentroAcopioConDetalles, CategoriaNecesidad, EstatusCentro, LogModeracion } from '../types/database.types';
 import { supabase } from '../lib/supabaseClient';
 import { vibrar } from '../lib/feedback';
 import { getCategoriaLabel } from '../lib/categorias';
+import { useAuth } from '../hooks/useAuth';
 
 interface TabAdminProps {
   centros: CentroAcopioConDetalles[];
@@ -14,11 +15,39 @@ interface TabAdminProps {
 }
 
 export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'centros' | 'necesidades'>('centros');
+  const [activeSubTab, setActiveSubTab] = useState<'centros' | 'necesidades' | 'historial'>('centros');
   const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroSpamOnly, setFiltroSpamOnly] = useState(false);
   const [loadingAction, setLoadingAction] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [logs, setLogs] = useState<LogModeracion[]>([]);
+  const { user } = useAuth();
+
+  // Cargar logs de moderación al abrir historial
+  useEffect(() => {
+    if (activeSubTab === 'historial') {
+      (supabase as any).from('log_moderacion')
+        .select('*')
+        .order('creado_en', { ascending: false })
+        .limit(50)
+        .then(({ data }: any) => { if (data) setLogs(data); });
+    }
+  }, [activeSubTab]);
+
+  // Helper: registrar log de moderación
+  const registrarLog = async (accion: string, entidadTipo: 'centro' | 'necesidad', entidadId: string, entidadNombre?: string, detalles?: string) => {
+    try {
+      await (supabase as any).from('log_moderacion').insert({
+        admin_id: user?.id || null,
+        admin_email: user?.email || null,
+        accion,
+        entidad_tipo: entidadTipo,
+        entidad_id: entidadId,
+        entidad_nombre: entidadNombre || null,
+        detalles: detalles || null,
+      });
+    } catch { /* silenciar */ }
+  };
 
   // --- 1. COMPUTAR ESTADÍSTICAS ---
   const totalCentros = centros.length;
@@ -70,13 +99,14 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
     vibrar(50);
   };
 
-  const handleEliminarCentro = async (id: string) => {
+  const handleEliminarCentro = async (id: string, nombre?: string) => {
     if (!window.confirm('¿Seguro que deseas eliminar este Centro de Acopio?\nEsta acción es irreversible y eliminará en cascada todas sus necesidades.')) return;
     
     setLoadingAction(prev => ({ ...prev, [id]: true }));
     try {
       const { error } = await supabase.from('centros_acopio').delete().eq('id', id);
       if (error) throw error;
+      await registrarLog('eliminar_centro', 'centro', id, nombre);
       vibrar(200);
       await refetch();
     } catch (err: any) {
@@ -86,13 +116,14 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
     }
   };
 
-  const handleEliminarNecesidad = async (id: string) => {
+  const handleEliminarNecesidad = async (id: string, descripcion?: string) => {
     if (!window.confirm('¿Seguro que deseas eliminar este requerimiento de suministro?')) return;
 
     setLoadingAction(prev => ({ ...prev, [id]: true }));
     try {
       const { error } = await supabase.from('necesidades').delete().eq('id', id);
       if (error) throw error;
+      await registrarLog('eliminar_necesidad', 'necesidad', id, descripcion);
       vibrar(200);
       await refetch();
     } catch (err: any) {
@@ -102,7 +133,7 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
     }
   };
 
-  const handleVerificarCentro = async (id: string, verificadoActualmente: boolean) => {
+  const handleVerificarCentro = async (id: string, verificadoActualmente: boolean, nombre?: string) => {
     setLoadingAction(prev => ({ ...prev, [id]: true }));
     try {
       const { error } = await supabase
@@ -110,6 +141,7 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
         .update({ verificado: !verificadoActualmente })
         .eq('id', id);
       if (error) throw error;
+      await registrarLog(verificadoActualmente ? 'desverificar' : 'verificar', 'centro', id, nombre);
       vibrar(100);
       await refetch();
     } catch (err: any) {
@@ -119,10 +151,9 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
     }
   };
 
-  const handleLimpiarSpam = async (necesidadId: string) => {
+  const handleLimpiarSpam = async (necesidadId: string, descripcion?: string) => {
     setLoadingAction(prev => ({ ...prev, [necesidadId]: true }));
     try {
-      // 1. Limpiar votos en la tabla de necesidades
       const { error: necError } = await supabase
         .from('necesidades')
         .update({ votos_no_vigente: 0 })
@@ -130,13 +161,13 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
       
       if (necError) throw necError;
 
-      // 2. Opcional: borrar los registros de votos en contra
       await (supabase as any)
         .from('votos_registro')
         .delete()
         .eq('necesidad_id', necesidadId)
         .eq('tipo_voto', 'no_vigente');
 
+      await registrarLog('limpiar_spam', 'necesidad', necesidadId, descripcion);
       vibrar(100);
       await refetch();
     } catch (err: any) {
@@ -271,6 +302,10 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${activeSubTab === 'necesidades' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
                 Necesidades ({necesidadesFiltradas.length})
               </button>
+              <button onClick={() => setActiveSubTab('historial')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${activeSubTab === 'historial' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                <Clock className="w-3 h-3 inline mr-0.5" />Log
+              </button>
             </div>
 
             <button onClick={() => setFiltroSpamOnly(!filtroSpamOnly)}
@@ -301,7 +336,7 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
                   </div>
 
                   <div className="flex gap-2 pt-1 border-t border-gray-50">
-                    <button onClick={() => handleVerificarCentro(c.id, c.verificado)} disabled={loading}
+                    <button onClick={() => handleVerificarCentro(c.id, c.verificado, c.nombre)} disabled={loading}
                       className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border flex items-center justify-center gap-1.5 ${
                         c.verificado ? 'bg-white text-gray-700 border-gray-200' : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                       }`}>
@@ -309,7 +344,7 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
                       {c.verificado ? 'Quitar Verificación' : 'Verificar'}
                     </button>
                     
-                    <button onClick={() => handleEliminarCentro(c.id)} disabled={loading}
+                    <button onClick={() => handleEliminarCentro(c.id, c.nombre)} disabled={loading}
                       className="px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1 active:scale-95 transition-transform"
                       title="Eliminar refugio">
                       <Trash2 className="w-3.5 h-3.5" />
@@ -347,14 +382,14 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
 
                   <div className="flex gap-2 pt-1 border-t border-gray-50">
                     {esSpam && (
-                      <button onClick={() => handleLimpiarSpam(n.id)} disabled={loading}
+                      <button onClick={() => handleLimpiarSpam(n.id, n.descripcion)} disabled={loading}
                         className="flex-1 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-bold rounded-lg flex items-center justify-center gap-1">
                         <Activity className="w-3.5 h-3.5 shrink-0" />
                         Limpiar Spam
                       </button>
                     )}
 
-                    <button onClick={() => handleEliminarNecesidad(n.id)} disabled={loading}
+                    <button onClick={() => handleEliminarNecesidad(n.id, n.descripcion)} disabled={loading}
                       className="px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-transform"
                       title="Eliminar necesidad">
                       <Trash2 className="w-3.5 h-3.5" />
@@ -372,6 +407,50 @@ export function TabAdmin({ centros, onClose, refetch }: TabAdminProps) {
 
           {activeSubTab === 'necesidades' && necesidadesFiltradas.length === 0 && (
             <p className="text-xs text-gray-400 text-center py-10 font-semibold">No se encontraron necesidades activas.</p>
+          )}
+
+          {/* --- HISTORIAL DE MODERACIÓN --- */}
+          {activeSubTab === 'historial' && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />Últimas acciones de moderación
+              </h3>
+              {logs.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-10 font-semibold">No hay registros de moderación aún.</p>
+              ) : (
+                logs.map(log => {
+                  const iconoAccion: Record<string, string> = {
+                    eliminar_centro: '🗑️',
+                    eliminar_necesidad: '🗑️',
+                    verificar: '✅',
+                    desverificar: '❌',
+                    limpiar_spam: '🧹',
+                  };
+                  const fecha = new Date(log.creado_en);
+                  const fechaStr = `${fecha.toLocaleDateString('es-VE')} ${fecha.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`;
+
+                  return (
+                    <div key={log.id} className="border border-gray-100 p-3 rounded-xl bg-white shadow-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-base">{iconoAccion[log.accion] || '📋'}</span>
+                          <div>
+                            <p className="text-xs font-bold text-gray-900">
+                              {log.accion.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </p>
+                            {log.entidad_nombre && (
+                              <p className="text-[10px] text-gray-600 font-semibold truncate max-w-[200px]">{log.entidad_nombre}</p>
+                            )}
+                            <p className="text-[10px] text-gray-400 mt-0.5">{log.admin_email || 'Admin'}</p>
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-gray-400 font-mono whitespace-nowrap">{fechaStr}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
         </section>
       </div>
