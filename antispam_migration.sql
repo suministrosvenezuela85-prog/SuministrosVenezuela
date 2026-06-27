@@ -73,3 +73,9 @@ CREATE POLICY "Inserción pública de reputación" ON reputacion_dispositivo
 DROP POLICY IF EXISTS "Actualización pública de reputación" ON reputacion_dispositivo;
 CREATE POLICY "Actualización pública de reputación" ON reputacion_dispositivo
     FOR UPDATE USING (true);
+
+-- 6. ACTUALIZACIÓN DE DATOS DE PRUEBA (Opcional)
+-- Asigna un teléfono de prueba a los centros existentes para validar el botón "Colaborar" inmediatamente.
+UPDATE centros_acopio
+SET telefono_contacto = '04121234567'
+WHERE telefono_contacto IS NULL;
