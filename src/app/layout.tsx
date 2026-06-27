@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://suministrosvenezuela.com"),
   title: "Suministros SOS 🇻🇪 — Coordinación de Insumos en Emergencias",
   description:
     "Plataforma colaborativa en tiempo real para coordinar la entrega de insumos en centros de acopio y refugios durante contingencias en Venezuela. Optimizada para redes 3G y uso offline.",
@@ -22,12 +23,28 @@ export const metadata: Metadata = {
     { rel: "apple-touch-icon", url: "/icon-512.png", sizes: "512x512", type: "image/png" },
   ],
   openGraph: {
-    title: "Suministros SOS 🇻🇪",
+    title: "Suministros SOS 🇻🇪 — Coordinación de Suministros en Venezuela",
     description:
-      "Coordinación colaborativa de insumos en centros de acopio y refugios en Venezuela.",
+      "Coordinación colaborativa en tiempo real de insumos en centros de acopio y refugios en Venezuela. Optimizada para baja conectividad.",
+    url: "https://suministrosvenezuela.com",
     type: "website",
     locale: "es_VE",
     siteName: "Suministros SOS Venezuela",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Suministros SOS Venezuela — Coordinación en Tiempo Real",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Suministros SOS 🇻🇪 — Coordinación de Suministros en Venezuela",
+    description:
+      "Plataforma colaborativa para coordinar insumos en centros de acopio y refugios.",
+    images: ["/og-image.png"],
   },
   other: {
     "theme-color": "#b91c1c",
