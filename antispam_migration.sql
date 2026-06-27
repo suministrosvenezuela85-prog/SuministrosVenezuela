@@ -81,3 +81,7 @@ CREATE POLICY "Actualización pública de reputación" ON reputacion_dispositivo
 UPDATE centros_acopio
 SET telefono_contacto = '04121234567'
 WHERE telefono_contacto IS NULL;
+
+-- 7. FORZAR RECARGA DEL CACHÉ DE ESQUEMAS EN SUPABASE (PostgREST)
+-- Esto soluciona de inmediato el error: "Could not find column ... in the schema cache"
+NOTIFY pgrst, 'reload schema';
