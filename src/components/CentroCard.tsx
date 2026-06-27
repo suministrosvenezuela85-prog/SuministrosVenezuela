@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Check, ThumbsUp, ThumbsDown, AlertTriangle, Award, Eye, EyeOff, Share2, Phone, X } from 'lucide-react';
+import { MapPin, Check, ThumbsUp, ThumbsDown, AlertTriangle, Award, Eye, EyeOff, Share2, Phone, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { CentroAcopioConDetalles } from '../types/database.types';
 import { supabase } from '../lib/supabaseClient';
 import { obtenerLatLng, calcularDistanciaKm, generarFingerprint, formatRelativeTime } from '../lib/geo';
@@ -18,6 +18,7 @@ export function CentroCard({ centro }: CentroCardProps) {
   const [votando, setVotando] = useState<Record<string, boolean>>({});
   const [verSpam, setVerSpam] = useState<Record<string, boolean>>({});
   const [showColaborarModal, setShowColaborarModal] = useState(false);
+  const [expandido, setExpandido] = useState(false);
 
   // Extraer todos los teléfonos únicos del coordinador y colaboradores de las necesidades
   const telefonosColaboradores = React.useMemo(() => {
@@ -124,7 +125,18 @@ export function CentroCard({ centro }: CentroCardProps) {
     window.open(generarEnlaceWhatsApp(texto), '_blank');
   };
 
-  const necesidadesFiltradas = (centro.necesidades || []).filter(n => n.estatus !== 'surtido');
+  const necesidadesFiltradas = React.useMemo(() => {
+    const ordenadas = [...(centro.necesidades || [])].sort(
+      (a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
+    );
+    const categoriasVistas = new Set<string>();
+    return ordenadas.filter(n => {
+      if (n.estatus === 'surtido') return false;
+      if (categoriasVistas.has(n.categoria)) return false;
+      categoriasVistas.add(n.categoria);
+      return true;
+    });
+  }, [centro.necesidades]);
 
   return (
     <div className={`bg-white rounded-xl shadow-sm border-t-4 ${getEstatusBorderColor(centro.estatus_general)} border-x border-b border-gray-100 overflow-hidden transition-all duration-300`}>
@@ -165,95 +177,133 @@ export function CentroCard({ centro }: CentroCardProps) {
           <span className="truncate max-w-[150px]" title={centro.direccion}>{centro.direccion}</span>
         </div>
 
-        <div className="space-y-3">
-          {necesidadesFiltradas.length === 0 ? (
-            <p className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-lg flex items-center gap-1.5">
-              <Check className="w-4 h-4 shrink-0" aria-hidden="true" /> Sin necesidades urgentes.
-            </p>
-          ) : (
-            necesidadesFiltradas.map((necesidad) => {
-              const votoInicial = votosIniciales[necesidad.id];
-              const votoActual = votosLocal[necesidad.id];
+        {/* --- CONTENIDO COMPRIMIDO / EXPANDIDO --- */}
+        {!expandido ? (
+          /* MODO COMPRIMIDO */
+          <div className="space-y-3 animate-fadeIn">
+            {necesidadesFiltradas.length === 0 ? (
+              <p className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-lg flex items-center gap-1.5">
+                <Check className="w-4 h-4 shrink-0" aria-hidden="true" /> Sin necesidades urgentes.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {necesidadesFiltradas.map(n => (
+                    <span key={n.id} className="text-[10px] font-bold px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-gray-700 flex items-center gap-1 shadow-sm">
+                      {getCategoriaIcon(n.categoria)}
+                      <span>{getCategoriaLabel(n.categoria)}</span>
+                    </span>
+                  ))}
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setExpandido(true)}
+                  className="w-full mt-2 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1 active:scale-95 transition-all"
+                >
+                  <span>MOSTRAR DETALLES ({necesidadesFiltradas.length})</span>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          /* MODO EXPANDIDO */
+          <div className="space-y-3 animate-fadeIn">
+            <div className="space-y-3">
+              {necesidadesFiltradas.map((necesidad) => {
+                const votoInicial = votosIniciales[necesidad.id];
+                const votoActual = votosLocal[necesidad.id];
 
-              let extraV = 0;
-              if (votoInicial === 'vigente' && votoActual !== 'vigente') extraV = -1;
-              else if (votoInicial !== 'vigente' && votoActual === 'vigente') extraV = 1;
+                let extraV = 0;
+                if (votoInicial === 'vigente' && votoActual !== 'vigente') extraV = -1;
+                else if (votoInicial !== 'vigente' && votoActual === 'vigente') extraV = 1;
 
-              let extraNV = 0;
-              if (votoInicial === 'no_vigente' && votoActual !== 'no_vigente') extraNV = -1;
-              else if (votoInicial !== 'no_vigente' && votoActual === 'no_vigente') extraNV = 1;
+                let extraNV = 0;
+                if (votoInicial === 'no_vigente' && votoActual !== 'no_vigente') extraNV = -1;
+                else if (votoInicial !== 'no_vigente' && votoActual === 'no_vigente') extraNV = 1;
 
-              const votosVigenteMostrados = Math.max(0, necesidad.votos_vigente + extraV);
-              const votosNoVigenteMostrados = Math.max(0, necesidad.votos_no_vigente + extraNV);
+                const votosVigenteMostrados = Math.max(0, necesidad.votos_vigente + extraV);
+                const votosNoVigenteMostrados = Math.max(0, necesidad.votos_no_vigente + extraNV);
 
-              const yaVotoV = votoActual === 'vigente';
-              const yaVotoNV = votoActual === 'no_vigente';
+                const yaVotoV = votoActual === 'vigente';
+                const yaVotoNV = votoActual === 'no_vigente';
 
-              const score = votosVigenteMostrados - (2 * votosNoVigenteMostrados);
-              const esSpam = score <= -3 || votosNoVigenteMostrados >= 3;
-              const oculto = esSpam && !verSpam[necesidad.id];
+                const score = votosVigenteMostrados - (2 * votosNoVigenteMostrados);
+                const esSpam = score <= -3 || votosNoVigenteMostrados >= 3;
+                const oculto = esSpam && !verSpam[necesidad.id];
 
-              return (
-                <div key={necesidad.id} className={`border border-gray-100 rounded-lg p-3 transition-all ${esSpam ? 'bg-red-50/30 border-red-100/50' : 'bg-white'}`}>
-                  {esSpam && (
-                    <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-red-100/30">
-                      <span className="text-[10px] font-bold text-red-700 bg-red-100/60 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Spam (Score: {score})
-                      </span>
-                      <button type="button" onClick={() => setVerSpam(prev => ({ ...prev, [necesidad.id]: !prev[necesidad.id] }))}
-                        className="text-[10px] font-bold text-red-800 hover:underline flex items-center gap-1"
-                        aria-label={oculto ? 'Mostrar contenido del reporte' : 'Ocultar reporte'}>
-                        {oculto ? <><Eye className="w-3 h-3" /> Mostrar</> : <><EyeOff className="w-3 h-3" /> Ocultar</>}
-                      </button>
-                    </div>
-                  )}
-
-                  {!oculto ? (
-                    <div className="animate-fadeIn">
-                      <div className="flex justify-between items-start gap-2 mb-1.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 border text-xs font-semibold rounded-md ${getUrgenciaStyles(necesidad.urgencia)}`}>
-                          {getCategoriaIcon(necesidad.categoria)}
-                          {getCategoriaLabel(necesidad.categoria)} - {getUrgenciaLabel(necesidad.urgencia)}
+                return (
+                  <div key={necesidad.id} className={`border border-gray-100 rounded-lg p-3 transition-all ${esSpam ? 'bg-red-50/30 border-red-100/50' : 'bg-white'}`}>
+                    {esSpam && (
+                      <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-red-100/30">
+                        <span className="text-[10px] font-bold text-red-700 bg-red-100/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Spam (Score: {score})
                         </span>
-                        <span className="text-xs font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">Cant: {necesidad.cantidad_requerida}</span>
+                        <button type="button" onClick={() => setVerSpam(prev => ({ ...prev, [necesidad.id]: !prev[necesidad.id] }))}
+                          className="text-[10px] font-bold text-red-800 hover:underline flex items-center gap-1"
+                          aria-label={oculto ? 'Mostrar contenido del reporte' : 'Ocultar reporte'}>
+                          {oculto ? <><Eye className="w-3 h-3" /> Mostrar</> : <><EyeOff className="w-3 h-3" /> Ocultar</>}
+                        </button>
                       </div>
-                      <p className="text-gray-700 text-sm mb-3 font-medium">{necesidad.descripcion}</p>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-gray-50">
-                        <span className="text-[11px] text-gray-500 font-semibold">¿Sigue vigente?</span>
-                        <div className="flex items-center gap-2" role="group" aria-label="Votar vigencia del reporte">
-                          <button onClick={() => handleVotar(necesidad.id, 'vigente')} disabled={votando[necesidad.id]}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${yaVotoV ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 active:scale-95'} disabled:cursor-not-allowed`}
-                            aria-label={`Votar que sí sigue vigente (${votosVigenteMostrados} votos)`} aria-pressed={yaVotoV}>
-                            <ThumbsUp className="w-3.5 h-3.5" />Sí ({votosVigenteMostrados})
-                          </button>
-                          <button onClick={() => handleVotar(necesidad.id, 'no_vigente')} disabled={votando[necesidad.id]}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${yaVotoNV ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-700 border-red-200 hover:bg-red-50 active:scale-95'} disabled:cursor-not-allowed`}
-                            aria-label={`Votar que no sigue vigente (${votosNoVigenteMostrados} votos)`} aria-pressed={yaVotoNV}>
-                            <ThumbsDown className="w-3.5 h-3.5" />No ({votosNoVigenteMostrados})
-                          </button>
+                    )}
+
+                    {!oculto ? (
+                      <div className="animate-fadeIn">
+                        <div className="flex justify-between items-start gap-2 mb-1.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 border text-xs font-semibold rounded-md ${getUrgenciaStyles(necesidad.urgencia)}`}>
+                            {getCategoriaIcon(necesidad.categoria)}
+                            {getCategoriaLabel(necesidad.categoria)} - {getUrgenciaLabel(necesidad.urgencia)}
+                          </span>
+                          <span className="text-xs font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">Cant: {necesidad.cantidad_requerida}</span>
+                        </div>
+                        <p className="text-gray-700 text-sm mb-3 font-medium">{necesidad.descripcion}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-gray-50">
+                          <span className="text-[11px] text-gray-500 font-semibold">¿Sigue vigente?</span>
+                          <div className="flex items-center gap-2" role="group" aria-label="Votar vigencia del reporte">
+                            <button onClick={() => handleVotar(necesidad.id, 'vigente')} disabled={votando[necesidad.id]}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${yaVotoV ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 active:scale-95'} disabled:cursor-not-allowed`}
+                              aria-label={`Votar que sí sigue vigente (${votosVigenteMostrados} votos)`} aria-pressed={yaVotoV}>
+                              <ThumbsUp className="w-3.5 h-3.5" />Sí ({votosVigenteMostrados})
+                            </button>
+                            <button onClick={() => handleVotar(necesidad.id, 'no_vigente')} disabled={votando[necesidad.id]}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${yaVotoNV ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-700 border-red-200 hover:bg-red-50 active:scale-95'} disabled:cursor-not-allowed`}
+                              aria-label={`Votar que no sigue vigente (${votosNoVigenteMostrados} votos)`} aria-pressed={yaVotoNV}>
+                              <ThumbsDown className="w-3.5 h-3.5" />No ({votosNoVigenteMostrados})
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-xs italic">Reporte minimizado por votos de spam.</p>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+                    ) : (
+                      <p className="text-gray-500 text-xs italic">Reporte minimizado por votos de spam.</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
-        {/* Pie del Centro Card: Botón Colaborar */}
-        <div className="mt-4 pt-3 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={() => setShowColaborarModal(true)}
-            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all duration-200"
-          >
-            <Phone className="w-3.5 h-3.5 fill-white/10" />
-            COLABORAR / CONTACTAR
-          </button>
-        </div>
+            {/* Pie del Centro Card: Botones de Acción en Modo Expandido */}
+            <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowColaborarModal(true)}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all duration-200"
+              >
+                <Phone className="w-3.5 h-3.5 fill-white/10" />
+                COLABORAR / CONTACTAR
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setExpandido(false)}
+                className="w-full py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 font-bold text-xs rounded-xl flex items-center justify-center gap-1 active:scale-95 transition-all"
+              >
+                <span>COMPRIMIR REFUGIO</span>
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal de Colaboración y Contacto */}
