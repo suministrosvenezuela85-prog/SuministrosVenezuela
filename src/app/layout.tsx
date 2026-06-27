@@ -14,18 +14,18 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://suministrosvenezuela.com"),
-  title: "Suministros SOS 🇻🇪 — Coordinación de Insumos en Emergencias",
+  title: "Suministros SOS 🇻🇪 — Coordinación de Insumos (Iniciativa Ciudadana)",
   description:
-    "Plataforma colaborativa en tiempo real para coordinar la entrega de insumos en centros de acopio y refugios durante contingencias en Venezuela. Optimizada para redes 3G y uso offline.",
+    "Plataforma colaborativa e independiente, creada de civiles para civiles en Venezuela, para coordinar la entrega de insumos en centros de acopio y refugios durante contingencias. Sin fines de lucro ni afiliaciones. Optimizada para redes 3G y uso offline.",
   manifest: "/manifest.json",
   icons: [
     { rel: "icon", url: "/icon-192.png", sizes: "192x192", type: "image/png" },
     { rel: "apple-touch-icon", url: "/icon-512.png", sizes: "512x512", type: "image/png" },
   ],
   openGraph: {
-    title: "Suministros SOS 🇻🇪 — Coordinación de Suministros en Venezuela",
+    title: "Suministros SOS 🇻🇪 — Iniciativa Ciudadana de Civiles para Civiles",
     description:
-      "Coordinación colaborativa en tiempo real de insumos en centros de acopio y refugios en Venezuela. Optimizada para baja conectividad.",
+      "Plataforma colaborativa e independiente para coordinar en tiempo real la entrega de insumos en centros de acopio y refugios en Venezuela. De civiles para civiles.",
     url: "https://suministrosvenezuela.com",
     type: "website",
     locale: "es_VE",
@@ -35,19 +35,19 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Suministros SOS Venezuela — Coordinación en Tiempo Real",
+        alt: "Suministros SOS Venezuela — Iniciativa Ciudadana Independiente",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Suministros SOS 🇻🇪 — Coordinación de Suministros en Venezuela",
+    title: "Suministros SOS 🇻🇪 — De Civiles para Civiles",
     description:
-      "Plataforma colaborativa para coordinar insumos en centros de acopio y refugios.",
+      "Plataforma independiente y colaborativa para coordinar insumos en centros de acopio y refugios en Venezuela.",
     images: ["/og-image.png"],
   },
   other: {
-    "theme-color": "#b91c1c",
+    "theme-color": "#0f172a",
   },
 };
 
