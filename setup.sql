@@ -136,6 +136,14 @@ CREATE POLICY "Permitir lectura pública de votos" ON votos_registro
 CREATE POLICY "Permitir inserción pública de votos" ON votos_registro
     FOR INSERT WITH CHECK (true);
 
+-- POLÍTICAS DE BORRADO PARA ADMINISTRADORES
+CREATE POLICY "Permitir borrado de centros a administradores" ON centros_acopio
+    FOR DELETE TO authenticated
+    USING (auth.jwt() -> 'user_metadata' ->> 'role' = 'administrador_verificado');
+
+CREATE POLICY "Permitir borrado de necesidades a administradores" ON necesidades
+    FOR DELETE TO authenticated
+    USING (auth.jwt() -> 'user_metadata' ->> 'role' = 'administrador_verificado');
 
 -- 7. FUNCIONES ALMACENADAS RPC PARA VOTACIONES CON RATE-LIMITING
 -- Ahora reciben un fingerprint y solo incrementan si el voto es nuevo

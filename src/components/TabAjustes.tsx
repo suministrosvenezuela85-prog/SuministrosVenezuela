@@ -1,16 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Moon, CheckCircle, LogIn, LogOut, Mail, Lock, Loader2 } from 'lucide-react';
+import { Moon, CheckCircle, LogIn, LogOut, Mail, Lock, Loader2, Shield } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { TabAdmin } from './TabAdmin';
+import { CentroAcopioConDetalles } from '../types/database.types';
 
 interface TabAjustesProps {
   oledDark: boolean;
   onToggleOled: () => void;
+  centros: CentroAcopioConDetalles[];
+  refetch: () => Promise<void>;
 }
 
-export function TabAjustes({ oledDark, onToggleOled }: TabAjustesProps) {
+export function TabAjustes({ oledDark, onToggleOled, centros, refetch }: TabAjustesProps) {
   const { user, isAdmin, loading: authLoading, error: authError, signIn, signUp, signOut, setError } = useAuth();
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -83,9 +88,16 @@ export function TabAjustes({ oledDark, onToggleOled }: TabAjustesProps) {
               </div>
             </div>
             {isAdmin && (
-              <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 p-2 rounded-lg">
-                Tus reportes se marcan como oficiales con insignia de verificación.
-              </p>
+              <>
+                <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 p-2 rounded-lg">
+                  Tus reportes se marcan como oficiales con insignia de verificación.
+                </p>
+                <button type="button" onClick={() => setShowAdminPanel(true)}
+                  className="w-full py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform"
+                  aria-label="Abrir panel de administración">
+                  <Shield className="w-3.5 h-3.5 fill-white/10" />ABRIR PANEL DE CONTROL
+                </button>
+              </>
             )}
             <button onClick={signOut}
               className="w-full py-2 bg-white text-red-700 border border-red-200 font-bold text-xs rounded-lg hover:bg-red-50 flex items-center justify-center gap-1.5"
@@ -137,6 +149,14 @@ export function TabAjustes({ oledDark, onToggleOled }: TabAjustesProps) {
         <p>Diseñado para emergencias humanitarias bajo redes de baja conectividad.</p>
         <p>Caracas, Venezuela — 2026</p>
       </div>
+
+      {showAdminPanel && isAdmin && (
+        <TabAdmin
+          centros={centros}
+          onClose={() => setShowAdminPanel(false)}
+          refetch={refetch}
+        />
+      )}
     </div>
   );
 }

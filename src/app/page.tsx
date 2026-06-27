@@ -107,7 +107,12 @@ export default function SuministrosApp() {
         )}
 
         {activeTab === 'ajustes' && (
-          <TabAjustes oledDark={oledDark} onToggleOled={toggleOledDark} />
+          <TabAjustes
+            oledDark={oledDark}
+            onToggleOled={toggleOledDark}
+            centros={centros}
+            refetch={refetch}
+          />
         )}
       </main>
 
