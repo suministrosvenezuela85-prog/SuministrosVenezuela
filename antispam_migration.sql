@@ -51,20 +51,25 @@ ALTER TABLE log_moderacion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reputacion_dispositivo ENABLE ROW LEVEL SECURITY;
 
 -- Políticas: log_moderacion
+DROP POLICY IF EXISTS "Lectura de logs solo para admins" ON log_moderacion;
 CREATE POLICY "Lectura de logs solo para admins" ON log_moderacion
     FOR SELECT TO authenticated
     USING (auth.jwt() -> 'user_metadata' ->> 'role' = 'administrador_verificado');
 
+DROP POLICY IF EXISTS "Inserción de logs para admins" ON log_moderacion;
 CREATE POLICY "Inserción de logs para admins" ON log_moderacion
     FOR INSERT TO authenticated
     WITH CHECK (auth.jwt() -> 'user_metadata' ->> 'role' = 'administrador_verificado');
 
 -- Políticas: reputacion_dispositivo
+DROP POLICY IF EXISTS "Lectura pública de reputación" ON reputacion_dispositivo;
 CREATE POLICY "Lectura pública de reputación" ON reputacion_dispositivo
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Inserción pública de reputación" ON reputacion_dispositivo;
 CREATE POLICY "Inserción pública de reputación" ON reputacion_dispositivo
     FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Actualización pública de reputación" ON reputacion_dispositivo;
 CREATE POLICY "Actualización pública de reputación" ON reputacion_dispositivo
     FOR UPDATE USING (true);
