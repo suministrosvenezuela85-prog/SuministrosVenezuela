@@ -1,11 +1,10 @@
-'use client';
-
-import React, { useRef, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Loader2, Navigation, MapPin } from 'lucide-react';
 import { useLeaflet } from '../hooks/useLeaflet';
 import { CentroAcopioConDetalles } from '../types/database.types';
 import { obtenerLatLng } from '../lib/geo';
 import { getCategoriaLabel, getEstatusMapColor } from '../lib/categorias';
+import { vibrar } from '../lib/feedback';
 
 interface TabMapaProps {
   centros: CentroAcopioConDetalles[];
@@ -15,7 +14,11 @@ export function TabMapa({ centros }: TabMapaProps) {
   const { L, isReady } = useLeaflet();
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState('');
 
   // Inicializar el mapa una sola vez cuando Leaflet está listo
   useEffect(() => {
@@ -38,6 +41,7 @@ export function TabMapa({ centros }: TabMapaProps) {
         mapRef.current.remove();
         mapRef.current = null;
         markersRef.current = null;
+        userMarkerRef.current = null;
       }
     };
   }, [isReady, L]);
@@ -86,12 +90,73 @@ export function TabMapa({ centros }: TabMapaProps) {
     });
   }, [L, centros]);
 
+  const centrarEnUsuario = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation || !L || !mapRef.current) {
+      setGpsError('La geolocalización no está soportada o no está disponible.');
+      return;
+    }
+
+    setGpsLoading(true);
+    setGpsError('');
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        vibrar(100);
+
+        // Mover cámara
+        mapRef.current.setView([latitude, longitude], 14);
+
+        // Remover pin de usuario anterior
+        if (userMarkerRef.current) {
+          userMarkerRef.current.remove();
+        }
+
+        // Crear nuevo pin de usuario de color azul
+        const userIcon = L.divIcon({
+          html: `<div style="background-color: #3b82f6; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 8px rgba(59, 130, 246, 0.65);"></div>`,
+          className: 'custom-user-pin',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        });
+
+        userMarkerRef.current = L.marker([latitude, longitude], { icon: userIcon })
+          .addTo(mapRef.current)
+          .bindPopup('<b style="font-size: 11px;">Tu ubicación actual</b>')
+          .openPopup();
+
+        setGpsLoading(false);
+      },
+      (err) => {
+        console.warn('Error detectando ubicación en mapa:', err);
+        setGpsError('Permiso de ubicación denegado o señal GPS débil.');
+        setGpsLoading(false);
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  };
+
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4" role="tabpanel" id="panel-mapa" aria-label="Mapa de suministros">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 leading-tight">Mapa de Suministros SOS</h2>
-        <p className="text-xs text-gray-500 mt-1">Visualización geográfica interactiva en tiempo real.</p>
+      <div className="flex justify-between items-start gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 leading-tight">Mapa de Suministros SOS</h2>
+          <p className="text-xs text-gray-500 mt-1">Visualización geográfica interactiva en tiempo real.</p>
+        </div>
+        
+        <button onClick={centrarEnUsuario} disabled={gpsLoading || !isReady}
+          className="py-2 px-3 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 active:scale-95 transition-transform shrink-0 disabled:opacity-50"
+          aria-label="Ver centros de acopio cercanos a mi ubicación">
+          {gpsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
+          VER CENTROS CERCANOS
+        </button>
       </div>
+
+      {gpsError && (
+        <p className="p-2.5 bg-red-50 border border-red-100 rounded-lg text-[10px] text-red-700 font-bold" role="alert">
+          ⚠️ {gpsError}
+        </p>
+      )}
 
       <div className="relative rounded-xl overflow-hidden border border-gray-200 shadow-inner">
         <div ref={containerRef} style={{ height: '320px', width: '100%' }} className="rounded-xl" />
