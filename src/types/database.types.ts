@@ -33,6 +33,7 @@ export interface CentroAcopio {
   reportado_autenticado?: boolean;
   gps_verificado?: boolean;
   telefono_contacto?: string | null;
+  mensaje_alerta?: string | null;
 }
 
 export interface Necesidad {
@@ -104,6 +105,7 @@ export interface Database {
           verificado: boolean;
           creado_por: string | null;
           ultima_actualizacion: string;
+          mensaje_alerta?: string | null;
         };
         Insert: {
           id?: string;
@@ -116,6 +118,7 @@ export interface Database {
           verificado?: boolean;
           creado_por?: string | null;
           ultima_actualizacion?: string;
+          mensaje_alerta?: string | null;
         };
         Update: {
           id?: string;
@@ -128,6 +131,7 @@ export interface Database {
           verificado?: boolean;
           creado_por?: string | null;
           ultima_actualizacion?: string;
+          mensaje_alerta?: string | null;
         };
         Relationships: [];
       };

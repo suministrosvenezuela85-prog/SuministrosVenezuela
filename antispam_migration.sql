@@ -14,6 +14,8 @@ ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS reportado_autenticado BOOLEA
 ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS gps_verificado BOOLEAN DEFAULT false;
 -- Teléfono del coordinador para botón de colaborar
 ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS telefono_contacto TEXT NULL;
+-- Mensaje de alerta del coordinador
+ALTER TABLE centros_acopio ADD COLUMN IF NOT EXISTS mensaje_alerta TEXT NULL;
 
 -- Rastrear quién creó cada necesidad
 ALTER TABLE necesidades ADD COLUMN IF NOT EXISTS reportado_por_fingerprint TEXT NULL;

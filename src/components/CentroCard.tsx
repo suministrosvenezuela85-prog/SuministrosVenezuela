@@ -251,9 +251,18 @@ export function CentroCard({ centro, refetch }: CentroCardProps) {
           {!centro.verificado && !centro.reportado_autenticado && !centro.gps_verificado && (
             <><span className="text-gray-300">|</span><span className="text-[10px] font-medium text-gray-400" title="Reporte anónimo">Anónimo</span></>
           )}
-          <span className="text-gray-300">|</span>
           <span className="truncate max-w-[150px]" title={centro.direccion}>{centro.direccion}</span>
         </div>
+
+        {centro.mensaje_alerta && (
+          <div className="mb-3 p-3 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-600 leading-relaxed font-medium animate-fadeIn flex items-start gap-2">
+            <span className="text-sm shrink-0" role="img" aria-label="Aviso del Coordinador">📢</span>
+            <div>
+              <span className="font-extrabold text-gray-800 block text-[9px] uppercase tracking-wider mb-0.5">Mensaje del Coordinador</span>
+              <p className="italic">"{centro.mensaje_alerta}"</p>
+            </div>
+          </div>
+        )}
 
         {/* --- CONTENIDO COMPRIMIDO / EXPANDIDO --- */}
         {!expandido ? (

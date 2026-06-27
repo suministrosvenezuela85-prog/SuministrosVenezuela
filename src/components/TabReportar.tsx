@@ -49,6 +49,20 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
   const [estadoReporte, setEstadoReporte] = useState('Distrito Capital');
   const [municipioReporte, setMunicipioReporte] = useState('');
   const [direccionReporte, setDireccionReporte] = useState('');
+  const [mensajeAlerta, setMensajeAlerta] = useState('');
+
+  const handleMensajeAlertaChange = (val: string) => {
+    const palabras = val.split(/\s+/).filter(Boolean);
+    if (palabras.length <= 100) {
+      setMensajeAlerta(val);
+    } else {
+      const recortado = palabras.slice(0, 100).join(' ');
+      setMensajeAlerta(recortado);
+    }
+  };
+
+  const totalPalabrasAlerta = mensajeAlerta.split(/\s+/).filter(Boolean).length;
+  const palabrasRestantesAlerta = 100 - totalPalabrasAlerta;
 
   const { latitud, longitud, gpsLoading, gpsReady, gpsError, detectarUbicacion, resetGps } = useGeolocation();
   const [latitudCentro, setLatitudCentro] = useState<number | null>(null);
@@ -428,7 +442,8 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
           cantidad: cantidadRequerida.trim(),
           urgencia: urgenciaSeleccionada, verificado: isAdmin,
           reportado_por_fingerprint: fp,
-          reportado_autenticado: user !== null
+          reportado_autenticado: user !== null,
+          mensaje_alerta: mensajeAlerta.trim() || null
         });
         if (!ok) { allOk = false; break; }
       }
@@ -461,7 +476,8 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
         reportado_por_fingerprint: fp,
         reportado_autenticado: user !== null,
         gps_verificado: gpsVerificado,
-        telefono_contacto: user?.user_metadata?.telefono || null
+        telefono_contacto: user?.user_metadata?.telefono || null,
+        mensaje_alerta: mensajeAlerta.trim() || null
       }).select().single();
       if (cErr) throw cErr;
 
@@ -498,7 +514,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     setCategoriasSeleccionadas(['agua_hidratacion']);
     setCantidadRequerida(''); setDescripcionNecesidad(''); resetGps();
     setLatitudCentro(null); setLongitudCentro(null); setUbicacionFijada(false);
-    setBusquedaMap(''); setSugerenciasMap([]);
+    setMensajeAlerta(''); setBusquedaMap(''); setSugerenciasMap([]);
     setCaptchaRespuesta('');
   };
 
@@ -785,6 +801,25 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
           <textarea id="descripcion" placeholder="Descripción del suministro necesario..." value={descripcionNecesidad} onChange={e => setDescripcionNecesidad(e.target.value)} rows={3}
             className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-gray-800 resize-none" required />
         </div>
+
+        {mode === 'nuevo' && (
+          <div className="space-y-1">
+            <label htmlFor="mensaje-alerta" className="flex justify-between text-xs font-bold text-gray-600 uppercase">
+              <span>Mensaje del Coordinador (Opcional)</span>
+              <span className={`text-[10px] ${palabrasRestantesAlerta < 10 ? 'text-red-500 font-bold' : 'text-gray-400 font-semibold'}`}>
+                {palabrasRestantesAlerta} palabras restantes
+              </span>
+            </label>
+            <textarea
+              id="mensaje-alerta"
+              placeholder="Aviso rápido de 100 palabras. Ej. Recibimos donaciones solo en la entrada norte, preguntar por Juan..."
+              value={mensajeAlerta}
+              onChange={e => handleMensajeAlertaChange(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-gray-800 resize-none"
+            />
+          </div>
+        )}
 
         {isAdmin && (
           <div className="p-2.5 bg-blue-50 text-blue-900 border border-blue-200 rounded-lg text-xs font-semibold flex items-center gap-1.5">
