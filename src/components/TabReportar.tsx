@@ -86,7 +86,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     setBuscandoMap(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ve&limit=5&addressdetails=1`
       );
       if (response.ok) {
         const data = await response.json();
@@ -124,6 +124,39 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
     setUbicacionFijada(true);
     setSugerenciasMap([]);
     setBusquedaMap(sug.display_name);
+
+    // Autocompletado inteligente de Estado y Municipio
+    if (sug.address) {
+      const normalizar = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      
+      // 1. Mapear Estado
+      if (sug.address.state) {
+        const stateInput = normalizar(sug.address.state);
+        const estadoEncontrado = ESTADOS_VENEZUELA.find(est => {
+          const estNorm = normalizar(est);
+          return stateInput.includes(estNorm) || estNorm.includes(stateInput);
+        });
+        if (estadoEncontrado) {
+          setEstadoReporte(estadoEncontrado);
+        }
+      }
+
+      // 2. Mapear Municipio
+      const municipioVal = sug.address.municipality || sug.address.county || sug.address.city || sug.address.town || '';
+      if (municipioVal) {
+        // Limpiar palabras comunes devueltas por Nominatim como "Municipio "
+        const limpio = municipioVal.replace(/Municipio\s+/i, '').replace(/Parroquia\s+/i, '').trim();
+        setMunicipioReporte(limpio);
+      }
+      
+      // 3. Mapear dirección sugerida inicial si está vacía
+      if (!direccionReporte.trim() && sug.display_name) {
+        // Usar los primeros dos segmentos como dirección sugerida
+        const partes = sug.display_name.split(',');
+        const dirSugerida = partes.slice(0, 2).join(',').trim();
+        setDireccionReporte(dirSugerida);
+      }
+    }
 
     if (miniMapRef.current) {
       miniMapRef.current.setView([lat, lon], 16);
@@ -502,7 +535,7 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
                 <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
                 <input
                   type="text"
-                  placeholder="🔍 Buscar dirección (ej. Plaza Altamira, Chacao)..."
+                  placeholder="Buscar dirección en el mapa (ej. Plaza Altamira, Chacao)..."
                   value={busquedaMap}
                   onChange={e => setBusquedaMap(e.target.value)}
                   className="w-full pl-9 pr-12 py-2.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-semibold text-gray-800"
@@ -512,17 +545,26 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
                 )}
                 
                 {sugerenciasMap.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-30 divide-y divide-gray-100 animate-fadeIn">
-                    {sugerenciasMap.map((sug, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => seleccionarSugerencia(sug)}
-                        className="w-full text-left px-3 py-2 text-[10px] text-gray-700 hover:bg-red-50 hover:text-red-900 transition-colors font-bold truncate block"
-                      >
-                        {sug.display_name}
-                      </button>
-                    ))}
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto z-30 divide-y divide-gray-100 animate-fadeIn overflow-hidden">
+                    {sugerenciasMap.map((sug, idx) => {
+                      const partes = sug.display_name.split(',');
+                      const titulo = partes[0];
+                      const subtitulo = partes.slice(1).join(',').trim();
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => seleccionarSugerencia(sug)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-red-50/50 hover:text-red-900 transition-all flex items-start gap-2.5"
+                        >
+                          <MapPin className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                          <div className="truncate">
+                            <p className="text-xs font-bold text-gray-800 truncate">{titulo}</p>
+                            {subtitulo && <p className="text-[10px] text-gray-400 font-medium truncate mt-0.5">{subtitulo}</p>}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -535,13 +577,22 @@ export function TabReportar({ isAdmin, isOnline, centros, onEncolar, onTabChange
                 </button>
                 {ubicacionFijada && (
                   <button type="button" onClick={() => { setLatitudCentro(null); setLongitudCentro(null); setUbicacionFijada(false); resetGps(); setBusquedaMap(''); }}
-                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-lg border border-red-200"
+                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-lg border border-red-200 active:scale-95 transition-transform"
                     aria-label="Borrar ubicación del mapa">
                     BORRAR PIN
                   </button>
                 )}
               </div>
-              {gpsError && <p className="text-red-600 text-[10px] font-bold" role="alert">{gpsError}</p>}
+              
+              {gpsError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-red-800 text-xs font-semibold animate-shake" role="alert">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Permiso de ubicación denegado</p>
+                    <p className="text-[10px] text-red-600 font-medium mt-0.5">Active el GPS en los ajustes de su navegador o use el buscador superior para marcar el pin en el mapa.</p>
+                  </div>
+                </div>
+              )}
               
               <p className="text-[10px] font-medium text-gray-500">
                 💡 Escribe la dirección arriba o toca directamente el mapa para ajustar el pin.
