@@ -56,10 +56,9 @@ export default function SuministrosApp() {
     }
   }, []);
 
-  // Filtrar y ordenar centros
-  const centrosFiltrados = centros.filter((centro) => {
+  // 1. Filtrar centros base (respetando estado y buscador, pero ignorando filtro de urgencia) y ordenarlos por prioridad de coordinador
+  const centrosFiltradosBase = centros.filter((centro) => {
     const matchEstado = estadoFiltro === 'todos' || centro.estado.toLowerCase() === estadoFiltro.toLowerCase();
-    const matchUrgencia = urgenciaFiltro === 'todos' || centro.estatus_general === urgenciaFiltro;
     const q = searchQuery.toLowerCase().trim();
     const matchSearch = q === '' ||
       centro.nombre.toLowerCase().includes(q) ||
@@ -69,13 +68,23 @@ export default function SuministrosApp() {
         n.descripcion.toLowerCase().includes(q) ||
         getCategoriaLabel(n.categoria).toLowerCase().includes(q)
       );
-    return matchEstado && matchUrgencia && matchSearch;
+    return matchEstado && matchSearch;
   }).sort((a, b) => {
     const isACoordinator = user && a.creado_por === user?.id;
     const isBCoordinator = user && b.creado_por === user?.id;
     if (isACoordinator && !isBCoordinator) return -1;
     if (!isACoordinator && isBCoordinator) return 1;
     return 0; // Mantener el orden original de Supabase (por urgencia/fecha)
+  });
+
+  // 2. Calcular los contadores de urgencia estables para los filtros rápidos
+  const criticosCount = centrosFiltradosBase.filter(c => c.estatus_general === 'critico').length;
+  const parcialesCount = centrosFiltradosBase.filter(c => c.estatus_general === 'parcial').length;
+  const surtidosCount = centrosFiltradosBase.filter(c => c.estatus_general === 'surtido').length;
+
+  // 3. Filtrar los centros a mostrar según la urgencia seleccionada
+  const centrosFiltrados = centrosFiltradosBase.filter((centro) => {
+    return urgenciaFiltro === 'todos' || centro.estatus_general === urgenciaFiltro;
   });
 
   return (
@@ -104,6 +113,9 @@ export default function SuministrosApp() {
             error={error}
             estadoFiltro={estadoFiltro}
             urgenciaFiltro={urgenciaFiltro}
+            criticosCount={criticosCount}
+            parcialesCount={parcialesCount}
+            surtidosCount={surtidosCount}
             onEstadoChange={setEstadoFiltro}
             onUrgenciaChange={setUrgenciaFiltro}
             onRefetch={refetch}

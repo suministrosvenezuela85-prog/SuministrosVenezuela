@@ -11,6 +11,9 @@ interface TabSuministrosProps {
   error: string | null;
   estadoFiltro: string;
   urgenciaFiltro: string;
+  criticosCount: number;
+  parcialesCount: number;
+  surtidosCount: number;
   onEstadoChange: (estado: string) => void;
   onUrgenciaChange: (urgencia: string) => void;
   onRefetch: () => void;
@@ -26,11 +29,9 @@ const ESTADOS_VENEZUELA = [
 
 export function TabSuministros({
   centros, loading, error, estadoFiltro, urgenciaFiltro,
+  criticosCount, parcialesCount, surtidosCount,
   onEstadoChange, onUrgenciaChange, onRefetch, onTabChange,
 }: TabSuministrosProps) {
-  const criticosCount = centros.filter(c => c.estatus_general === 'critico').length;
-  const parcialesCount = centros.filter(c => c.estatus_general === 'parcial').length;
-  const surtidosCount = centros.filter(c => c.estatus_general === 'surtido').length;
 
   return (
     <div className="space-y-4" role="tabpanel" id="panel-suministros" aria-label="Lista de suministros">
