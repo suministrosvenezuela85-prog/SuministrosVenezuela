@@ -15,7 +15,7 @@ import { OfflineBanner } from '../components/OfflineBanner';
 import { TabSuministros } from '../components/TabSuministros';
 import { TabReportar } from '../components/TabReportar';
 import { TabMapa } from '../components/TabMapa';
-import { TabDesaparecidos } from '../components/TabDesaparecidos';
+import { TabEstadisticas } from '../components/TabEstadisticas';
 import { TabAjustes } from '../components/TabAjustes';
 
 export default function SuministrosApp() {
@@ -138,8 +138,8 @@ export default function SuministrosApp() {
           <TabMapa centros={centros} />
         )}
 
-        {activeTab === 'desaparecidos' && (
-          <TabDesaparecidos />
+        {activeTab === 'estadisticas' && (
+          <TabEstadisticas centros={centros} />
         )}
 
         {activeTab === 'ajustes' && (
