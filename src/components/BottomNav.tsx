@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Layers, PlusCircle, Map, Settings, BarChart3 } from 'lucide-react';
+import { Layers, PlusCircle, Map, Settings, Users } from 'lucide-react';
 
-export type TabId = 'suministros' | 'reportar' | 'mapa' | 'estadisticas' | 'ajustes';
+export type TabId = 'suministros' | 'reportar' | 'mapa' | 'desaparecidos' | 'ajustes';
 
 interface BottomNavProps {
   activeTab: TabId;
@@ -14,7 +14,7 @@ const TABS: { id: TabId; label: string; Icon: React.ComponentType<any> }[] = [
   { id: 'suministros', label: 'Inicio', Icon: Layers },
   { id: 'reportar', label: 'Reportar', Icon: PlusCircle },
   { id: 'mapa', label: 'Mapa', Icon: Map },
-  { id: 'estadisticas', label: 'Resumen', Icon: BarChart3 },
+  { id: 'desaparecidos', label: 'Desaparecidos', Icon: Users },
   { id: 'ajustes', label: 'Ajustes', Icon: Settings },
 ];
 

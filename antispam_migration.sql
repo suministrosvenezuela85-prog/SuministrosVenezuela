@@ -84,6 +84,53 @@ UPDATE centros_acopio
 SET telefono_contacto = '04121234567'
 WHERE telefono_contacto IS NULL;
 
+-- 8. TABLA: personas_desaparecidas
+CREATE TABLE IF NOT EXISTS personas_desaparecidas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre_completo TEXT NOT NULL,
+    edad INTEGER NULL,
+    descripcion_fisica TEXT NULL,
+    ultima_ubicacion TEXT NOT NULL,
+    contacto_familiar TEXT NOT NULL,
+    foto_base64 TEXT NULL, -- Foto en base64 comprimida (< 150KB)
+    estatus TEXT DEFAULT 'busqueda' CHECK (estatus IN ('busqueda', 'encontrado')),
+    creado_por UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    reportado_por_fingerprint TEXT NULL,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    ultima_actualizacion TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Habilitar RLS
+ALTER TABLE personas_desaparecidas ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de RLS
+CREATE POLICY "Lectura pública de desaparecidos" ON personas_desaparecidas
+    FOR SELECT USING (true);
+
+CREATE POLICY "Inserción pública de desaparecidos" ON personas_desaparecidas
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Actualización para dueños o admins de desaparecidos" ON personas_desaparecidas
+    FOR UPDATE USING (
+        auth.uid() = creado_por 
+        OR reportado_por_fingerprint = CURRENT_SETTING('request.headers', true)::json->>'x-fingerprint'
+        OR EXISTS (
+            SELECT 1 FROM auth.users 
+            WHERE id = auth.uid() 
+            AND (raw_user_meta_data->>'is_admin')::boolean = true
+        )
+    );
+
+CREATE POLICY "Eliminación para dueños o admins de desaparecidos" ON personas_desaparecidas
+    FOR DELETE USING (
+        auth.uid() = creado_por
+        OR EXISTS (
+            SELECT 1 FROM auth.users 
+            WHERE id = auth.uid() 
+            AND (raw_user_meta_data->>'is_admin')::boolean = true
+        )
+    );
+
 -- 7. FORZAR RECARGA DEL CACHÉ DE ESQUEMAS EN SUPABASE (PostgREST)
 -- Esto soluciona de inmediato el error: "Could not find column ... in the schema cache"
 NOTIFY pgrst, 'reload schema';

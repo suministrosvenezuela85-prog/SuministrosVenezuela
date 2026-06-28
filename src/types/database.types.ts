@@ -59,7 +59,21 @@ export interface HistorialEntrega {
   centro_id: string;
   item_entregado: string;
   cantidad_entregada: string;
-  hora_entrega: string;
+}
+
+export interface PersonaDesaparecida {
+  id: string;
+  nombre_completo: string;
+  edad: number | null;
+  descripcion_fisica: string | null;
+  ultima_ubicacion: string;
+  contacto_familiar: string;
+  foto_base64: string | null;
+  estatus: 'busqueda' | 'encontrado';
+  creado_por: string | null;
+  reportado_por_fingerprint?: string | null;
+  creado_en: string;
+  ultima_actualizacion: string;
 }
 
 export interface CentroAcopioConDetalles extends Omit<CentroAcopio, 'coordenadas'> {
@@ -223,6 +237,51 @@ export interface Database {
             referencedColumns: ["id"];
           }
         ];
+      };
+      personas_desaparecidas: {
+        Row: {
+          id: string;
+          nombre_completo: string;
+          edad: number | null;
+          descripcion_fisica: string | null;
+          ultima_ubicacion: string;
+          contacto_familiar: string;
+          foto_base64: string | null;
+          estatus: 'busqueda' | 'encontrado';
+          creado_por: string | null;
+          reportado_por_fingerprint: string | null;
+          creado_en: string;
+          ultima_actualizacion: string;
+        };
+        Insert: {
+          id?: string;
+          nombre_completo: string;
+          edad?: number | null;
+          descripcion_fisica?: string | null;
+          ultima_ubicacion: string;
+          contacto_familiar: string;
+          foto_base64?: string | null;
+          estatus?: 'busqueda' | 'encontrado';
+          creado_por?: string | null;
+          reportado_por_fingerprint?: string | null;
+          creado_en?: string;
+          ultima_actualizacion?: string;
+        };
+        Update: {
+          id?: string;
+          nombre_completo?: string;
+          edad?: number | null;
+          descripcion_fisica?: string | null;
+          ultima_ubicacion?: string;
+          contacto_familiar?: string;
+          foto_base64?: string | null;
+          estatus?: 'busqueda' | 'encontrado';
+          creado_por?: string | null;
+          reportado_por_fingerprint?: string | null;
+          creado_en?: string;
+          ultima_actualizacion?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {
