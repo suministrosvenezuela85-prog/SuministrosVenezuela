@@ -306,8 +306,7 @@ export function CentroCard({ centro, refetch, userCoords }: CentroCardProps) {
           if (!pos) return null;
           const lat = pos[0];
           const lng = pos[1];
-          const bbox = `${lng - 0.003},${lat - 0.002},${lng + 0.003},${lat + 0.002}`;
-          const iframeSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat},${lng}`;
+          const iframeSrc = `https://maps.google.com/maps?q=${lat},${lng}&hl=es&z=15&output=embed`;
           const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
           return (
             <div className={`relative rounded-xl overflow-hidden border border-gray-100 shadow-inner w-full group animate-fadeIn mb-3.5 transition-all duration-300 ${expandido ? 'h-48' : 'h-32'}`}>
