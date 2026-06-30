@@ -40,31 +40,34 @@ export function TabSuministros({
   return (
     <div className="space-y-4" role="tabpanel" id="panel-suministros" aria-label="Lista de suministros">
       {/* Botón Reportar — PRIMERO: acción más urgente en emergencia */}
-      <div className="space-y-1.5 text-center">
+      <div className="space-y-2 text-center">
         <button
           onClick={() => onTabChange('reportar')}
-          className="w-full py-3.5 bg-red-700 hover:bg-red-800 text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
+          className="w-full py-3.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold text-sm rounded-xl shadow-lg shadow-red-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
           aria-label="Reportar una nueva necesidad o centro de acopio"
         >
           <PlusCircle className="w-5 h-5 shrink-0" />
           REPORTAR NECESIDAD / CENTRO
         </button>
-        <p className="text-[10px] text-gray-500 font-medium leading-normal px-2">
-          Al reportar una necesidad o centro de acopio te volverás coordinador de dicha zona y los que quieran ayudarte se pondrán en contacto contigo.
-        </p>
+        <div className="bg-slate-50 border-l-4 border-blue-500 rounded-r-xl p-2.5 flex items-start gap-2 shadow-sm text-left">
+          <span role="img" aria-label="info" className="text-sm shrink-0 mt-0.5">💡</span>
+          <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+            Al reportar una necesidad o centro de acopio te volverás coordinador de dicha zona y los que quieran ayudarte se pondrán en contacto contigo.
+          </p>
+        </div>
       </div>
 
-      {/* Filtros rápidos de urgencia */}
-      <div className="flex gap-2" role="group" aria-label="Filtros de urgencia">
+      {/* Filtros rápidos de urgencia (Segmented Control) */}
+      <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner w-full" role="group" aria-label="Filtros de urgencia">
         {[
-          { key: 'critico', label: 'Críticos', count: criticosCount, colors: { active: 'bg-red-50 text-red-700 border-red-500 ring-2 ring-red-200', idle: 'bg-white text-red-600 border-red-200 hover:bg-red-50' } },
-          { key: 'parcial', label: 'Parciales', count: parcialesCount, colors: { active: 'bg-amber-50 text-amber-800 border-amber-500 ring-2 ring-amber-200', idle: 'bg-white text-amber-600 border-amber-200 hover:bg-amber-50' } },
-          { key: 'surtido', label: 'Estables', count: surtidosCount, colors: { active: 'bg-emerald-50 text-emerald-800 border-emerald-500 ring-2 ring-emerald-200', idle: 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50' } },
+          { key: 'critico', label: 'Críticos', count: criticosCount, colors: { active: 'bg-white text-red-700 shadow-sm border-gray-200/50', idle: 'text-gray-500 hover:text-gray-700' } },
+          { key: 'parcial', label: 'Parciales', count: parcialesCount, colors: { active: 'bg-white text-amber-700 shadow-sm border-gray-200/50', idle: 'text-gray-500 hover:text-gray-700' } },
+          { key: 'surtido', label: 'Estables', count: surtidosCount, colors: { active: 'bg-white text-emerald-700 shadow-sm border-gray-200/50', idle: 'text-gray-500 hover:text-gray-700' } },
         ].map(({ key, label, count, colors }) => (
           <button
             key={key}
             onClick={() => onUrgenciaChange(urgenciaFiltro === key ? 'todos' : key)}
-            className={`flex-1 py-2 px-1 text-xs font-bold rounded-lg border transition-all text-center ${urgenciaFiltro === key ? colors.active : colors.idle}`}
+            className={`flex-1 py-2 px-1 text-[11px] font-bold rounded-lg border border-transparent transition-all duration-200 text-center ${urgenciaFiltro === key ? colors.active : colors.idle}`}
             aria-pressed={urgenciaFiltro === key}
             aria-label={`Filtrar por ${label}`}
           >

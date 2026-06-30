@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export function Header({ isOnline, searchOpen, searchQuery, onToggleSearch, onSearchChange }: HeaderProps) {
   return (
-    <header className="sticky top-0 bg-white border-b border-gray-100 z-30 shadow-sm px-4 py-3" role="banner">
+    <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100/50 z-30 shadow-sm px-4 py-3" role="banner">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="relative flex items-center justify-center" aria-hidden="true">
