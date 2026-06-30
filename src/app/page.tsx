@@ -42,18 +42,16 @@ export default function SuministrosApp() {
     }
   }, []);
 
-  // Auto-detectar ubicación al abrir la app para fijar el estado por defecto y coordenadas
+  // Auto-detectar ubicación al abrir la app para obtener coordenadas del usuario
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const estado = obtenerEstadoPorCoordenadas(pos.coords.latitude, pos.coords.longitude);
-          console.log(`📍 Ubicación detectada. Configurando filtro por defecto a: ${estado}`);
-          setEstadoFiltro(estado);
+          console.log(`📍 Coordenadas de usuario detectadas: ${pos.coords.latitude}, ${pos.coords.longitude}`);
           setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         },
         (err) => {
-          console.warn('⚠️ No se pudo obtener la ubicación para el filtro inicial de estado:', err.message);
+          console.warn('⚠️ No se pudo obtener la ubicación para cercanía GPS:', err.message);
         },
         { timeout: 8000 }
       );
